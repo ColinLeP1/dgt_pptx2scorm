@@ -5,7 +5,6 @@ import tempfile
 import shutil
 import re
 import uuid
-import fitz  # PyMuPDF
 
 st.set_page_config(page_title="Convertisseur PDF vers SCORM", layout="centered")
 st.title("📄 Convertisseur PDF vers SCORM")
@@ -29,7 +28,7 @@ elif total_seconds > 86400:
 def sanitize_title(title: str) -> str:
     return re.sub(r"[^\w\-]", "_", title) or "module"
 
-def generate_manifest(title, scorm_version):
+def generate_manifest(title, pdf_name, scorm_version):
     manifest_id = f"scorm_{uuid.uuid4().hex[:8]}"
     lom_metadata = f"""
     <metadata>
@@ -67,6 +66,7 @@ def generate_manifest(title, scorm_version):
   <resources>
     <resource identifier="res1" type="webcontent" adlcp:scormType="sco" href="index.html">
       <file href="index.html"/>
+      <file href="{pdf_name}"/>
     </resource>
   </resources>
   {lom_metadata}
@@ -78,23 +78,23 @@ default_title = os.path.splitext(pdf_file.name)[0] if pdf_file else ""
 title = st.text_input("Titre du module", default_title)
 scorm_version = st.selectbox("Version SCORM", ["1.2", "2004"])
 
+allow_download = st.checkbox("Autoriser le téléchargement du PDF", value=True)
+allow_print = st.checkbox("Autoriser l'impression du PDF", value=True)
+
 if pdf_file and total_seconds and st.button("Générer le package SCORM"):
     with st.spinner("📦 Génération en cours..."):
         output_zip = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
         zip_path = output_zip.name
 
-        def create_scorm_package(title, pdf_file, seconds_required, scorm_version, zip_path):
+        def create_scorm_package(title, pdf_file, seconds_required, scorm_version, allow_download, allow_print, zip_path):
             temp_dir = tempfile.mkdtemp()
 
-            # Lire le contenu du PDF avec PyMuPDF
-            pdf_bytes = pdf_file.read()
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            text_content = ""
-            for page in doc:
-                text_content += page.get_text()
-            doc.close()
+            original_pdf_name = re.sub(r'[^\w\-.]', '_', pdf_file.name)
+            pdf_path = os.path.join(temp_dir, original_pdf_name)
 
-            # Formatage du temps initial
+            with open(pdf_path, "wb") as f:
+                f.write(pdf_file.read())
+
             if seconds_required >= 3600:
                 h = seconds_required // 3600
                 m = (seconds_required % 3600) // 60
@@ -106,6 +106,16 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
             else:
                 initial_display = f"{seconds_required}s"
 
+            js_protection = """
+            document.addEventListener('contextmenu', e => e.preventDefault());
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && ['p','s'].includes(e.key.toLowerCase())) {
+                    e.preventDefault();
+                    alert("Impression et téléchargement désactivés.");
+                }
+            });
+            """ if not (allow_download and allow_print) else ""
+
             html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -114,16 +124,22 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
   <style>
     body {{ font-family: Arial, sans-serif; padding: 20px; }}
     #timer {{ font-size: 20px; margin-bottom: 10px; }}
-    .content {{ white-space: pre-wrap; }}
+    object, embed {{ width: 100%; height: 600px; }}
   </style>
 </head>
 <body>
   <h1>{title}</h1>
-  <p>Veuillez lire le contenu ci-dessous. Le module sera marqué comme complété après le temps requis.</p>
+  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après le temps requis.</p>
   <div id="timer">Temps requis : {initial_display}</div>
-  <div class="content">{text_content}</div>
+
+  <object data="{original_pdf_name}" type="application/pdf">
+    <embed src="{original_pdf_name}" type="application/pdf" />
+    <p>Votre navigateur ne peut pas afficher le PDF.</p>
+  </object>
 
   <script>
+    {js_protection}
+
     const SCORM_VERSION = "{scorm_version}";
     const TIME_TO_COMPLETE = {seconds_required};
     let remaining = TIME_TO_COMPLETE;
@@ -194,7 +210,7 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
                 f.write(html)
 
             with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
-                f.write(generate_manifest(title, scorm_version))
+                f.write(generate_manifest(title, original_pdf_name, scorm_version))
 
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for root, _, files in os.walk(temp_dir):
@@ -204,15 +220,18 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
                         zipf.write(full_path, arcname)
 
             shutil.rmtree(temp_dir)
+            return zip_path
 
-        create_scorm_package(title, pdf_file, total_seconds, scorm_version, zip_path)
+        final_zip_path = create_scorm_package(
+            title, pdf_file, total_seconds, scorm_version,
+            allow_download, allow_print, zip_path
+        )
 
-        with open(zip_path, "rb") as f:
+        st.success("✅ Package SCORM généré avec succès.")
+        with open(final_zip_path, "rb") as f:
             st.download_button(
                 label="📥 Télécharger le package SCORM",
                 data=f,
                 file_name=f"{sanitize_title(title)}.zip",
                 mime="application/zip"
             )
-
-        os.remove(zip_path)
