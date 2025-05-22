@@ -37,7 +37,7 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
         def create_scorm_package(title, pdf_file, seconds_required, scorm_version):
             temp_dir = tempfile.mkdtemp()
             safe_title = re.sub(r'[^\w\-\. ]', '_', title)  # remplace caractères spéciaux par "_"
-            pdf_path = os.path.join(temp_dir, f"{safe_title}.pdf")
+            pdf_path = os.path.join(temp_dir, pdf_file.name)
             with open(pdf_path, "wb") as f:
                 f.write(pdf_file.read())
 
