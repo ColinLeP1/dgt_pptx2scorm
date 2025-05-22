@@ -4,6 +4,7 @@ import os
 import tempfile
 import shutil
 import re
+import uuid
 
 st.set_page_config(page_title="Convertisseur PDF vers SCORM", layout="centered")
 st.title("📄 Convertisseur PDF vers SCORM")
@@ -23,10 +24,62 @@ def parse_hms(hms_str):
 total_seconds = parse_hms(time_input)
 if total_seconds is None:
     st.error("⛔ Format invalide. Veuillez utiliser HH:MM:SS.")
+elif total_seconds > 86400:
+    st.warning("⚠️ Temps supérieur à 24h. Veuillez vérifier.")
+
+def sanitize_title(title: str) -> str:
+    return re.sub(r"[^\w\-]", "_", title) or "module"
+
+def generate_manifest(title, pdf_name, scorm_version):
+    manifest_id = f"scorm_{uuid.uuid4().hex[:8]}"
+    lom_metadata = f"""
+    <metadata>
+      <schema>ADL SCORM</schema>
+      <schemaversion>{scorm_version}</schemaversion>
+      <lom xmlns=\"http://ltsc.ieee.org/xsd/LOM\">
+        <general>
+          <title>
+            <string language=\"fr\">{title}</string>
+          </title>
+          <description>
+            <string language=\"fr\">Module PDF avec timer et complétion automatique</string>
+          </description>
+        </general>
+      </lom>
+    </metadata>
+    """
+
+    manifest = f"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<manifest identifier=\"{manifest_id}\" version=\"1.0\"
+          xmlns=\"http://www.imsglobal.org/xsd/imscp_v1p1\"
+          xmlns:adlcp=\"http://www.adlnet.org/xsd/adlcp_v1p3\"
+          xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"
+          xsi:schemaLocation=\"http://www.imsglobal.org/xsd/imscp_v1p1 
+          imscp_v1p1.xsd
+          http://www.adlnet.org/xsd/adlcp_v1p3 
+          adlcp_v1p3.xsd\">
+  <organizations default=\"org1\">
+    <organization identifier=\"org1\">
+      <title>{title}</title>
+      <item identifier=\"item1\" identifierref=\"res1\">
+        <title>{title}</title>
+      </item>
+    </organization>
+  </organizations>
+  <resources>
+    <resource identifier=\"res1\" type=\"webcontent\" adlcp:scormType=\"sco\" href=\"index.html\">
+      <file href=\"index.html\"/>
+      <file href=\"{pdf_name}\"/>
+    </resource>
+  </resources>
+  {lom_metadata}
+</manifest>
+"""
+    return manifest
+
 
 default_title = os.path.splitext(pdf_file.name)[0] if pdf_file else ""
 title = st.text_input("Titre du module", default_title)
-
 scorm_version = st.selectbox("Version SCORM", ["1.2", "2004"])
 
 if pdf_file and total_seconds and st.button("Générer le package SCORM"):
@@ -36,15 +89,28 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
 
         def create_scorm_package(title, pdf_file, seconds_required, scorm_version):
             temp_dir = tempfile.mkdtemp()
-            safe_title = re.sub(r'[^\w\-\. ]', '_', title)  # remplace caractères spéciaux par "_"
-            pdf_path = os.path.join(temp_dir, pdf_file.name)
+
+            original_pdf_name = re.sub(r'[^\w\-.]', '_', pdf_file.name)
+            pdf_path = os.path.join(temp_dir, original_pdf_name)
+
             with open(pdf_path, "wb") as f:
                 f.write(pdf_file.read())
 
+            if seconds_required >= 3600:
+                h = seconds_required // 3600
+                m = (seconds_required % 3600) // 60
+                initial_display = f"{h}h {m}m"
+            elif seconds_required >= 60:
+                m = seconds_required // 60
+                s = seconds_required % 60
+                initial_display = f"{m}m {s}s" if s > 0 else f"{m}m"
+            else:
+                initial_display = f"{seconds_required}s"
+
             html = f"""<!DOCTYPE html>
-<html lang="fr">
+<html lang=\"fr\">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset=\"UTF-8\" />
   <title>{title}</title>
   <style>
     body {{ font-family: Arial, sans-serif; padding: 20px; }}
@@ -53,17 +119,16 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
 </head>
 <body>
   <h1>{title}</h1>
-  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété dès que le compteur atteindra 0.</p>
-  <div id="timer">Temps restant : {seconds_required} secondes</div>
-  
+  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après le temps requis.</p>
+  <div id=\"timer\">Temps requis : {initial_display}</div>
 
-  <object data="document.pdf" type="application/pdf" width="100%" height="600px">
-    <embed src="document.pdf" type="application/pdf" width="100%" height="600px" />
-    <p>Votre navigateur ne peut pas afficher le PDF. <a href="document.pdf" target="_blank">Cliquez ici pour le télécharger</a>.</p>
+  <object data=\"{original_pdf_name}\" type=\"application/pdf\" width=\"100%\" height=\"600px\">
+    <embed src=\"{original_pdf_name}\" type=\"application/pdf\" width=\"100%\" height=\"600px\" />
+    <p>Votre navigateur ne peut pas afficher le PDF. <a href=\"{original_pdf_name}\" target=\"_blank\">Cliquez ici pour le télécharger</a>.</p>
   </object>
 
   <script>
-    const SCORM_VERSION = "{scorm_version}";
+    const SCORM_VERSION = \"{scorm_version}\";
     const TIME_TO_COMPLETE = {seconds_required};
     let remaining = TIME_TO_COMPLETE;
 
@@ -76,11 +141,11 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
         if (remaining >= 3600) {{
           const h = Math.floor(remaining / 3600);
           const m = Math.floor((remaining % 3600) / 60);
-          text = `Temps restant : ${{h}}h ${{m}}m`;
+          text = `Temps restant : ${h}h ${m}m`;
         }} else {{
           const m = Math.floor(remaining / 60);
           const s = remaining % 60;
-          text = `Temps restant : ${{m.toString().padStart(2, '0')}}:${{s.toString().padStart(2, '0')}}`;
+          text = `Temps restant : ${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }}
 
         timerDiv.innerText = text;
@@ -136,33 +201,10 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
             with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
                 f.write(html)
 
-            manifest = f"""<?xml version="1.0" encoding="UTF-8"?>
-<manifest identifier="com.example.scorm" version="1.0"
-          xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
-          xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_v1p3"
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1 
-          imscp_v1p1.xsd
-          http://www.adlnet.org/xsd/adlcp_v1p3 
-          adlcp_v1p3.xsd">
-  <organizations default="org1">
-    <organization identifier="org1">
-      <title>{title}</title>
-      <item identifier="item1" identifierref="res1">
-        <title>{title}</title>
-      </item>
-    </organization>
-  </organizations>
-  <resources>
-    <resource identifier="res1" type="webcontent" adlcp:scormType="sco" href="index.html">
-      <file href="index.html"/>
-      <file href="document.pdf"/>
-    </resource>
-  </resources>
-</manifest>
-"""
+            manifest_xml = generate_manifest(title, original_pdf_name, scorm_version)
+
             with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
-                f.write(manifest)
+                f.write(manifest_xml)
 
             with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
                 for foldername, _, filenames in os.walk(temp_dir):
@@ -177,4 +219,4 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
 
         st.success("✅ Package SCORM généré avec succès.")
         with open(zip_path, "rb") as f:
-            st.download_button("📥 Télécharger le package SCORM", f, file_name=f"{title}.zip")
+            st.download_button("📅 Télécharger le package SCORM", f, file_name=f"{sanitize_title(title)}.zip")
