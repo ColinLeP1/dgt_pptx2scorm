@@ -6,6 +6,7 @@ import shutil
 import re
 import uuid
 
+
 st.set_page_config(page_title="Convertisseur PDF vers SCORM", layout="centered")
 st.title("📄 Convertisseur PDF vers SCORM")
 
