@@ -109,25 +109,24 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
             else:
                 initial_display = f"{seconds_required}s"
 
-            # JS to disable right-click, Ctrl+P, Ctrl+S if printing disabled
-            print_js = "" if allow_print else """
+            # JS pour désactiver clic droit, Ctrl+P, Ctrl+S selon options
+            print_js = """
             window.addEventListener('contextmenu', function(e) {
-              e.preventDefault();
-              alert("Le clic droit est désactivé pour ce document.");
+              %s
             });
 
             window.addEventListener('keydown', function(e) {
-              if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 's')) {
-                e.preventDefault();
-                alert("L'impression et le téléchargement sont désactivés pour ce document.");
+              if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key.toLowerCase() === 's')) {
+                %s
               }
             });
-            """
+            """ % (
+                "e.preventDefault(); alert('Le clic droit est désactivé pour ce document.');" if not allow_print else "",
+                "e.preventDefault(); alert('L\'impression et le téléchargement sont désactivés pour ce document.');" if not allow_print or not allow_download else "",
+            )
 
-            # Lien téléchargement affiché seulement si allow_download
-            download_link_html = f"""
-            <p><a href="{original_pdf_name}" target="_blank" download>Télécharger le PDF</a></p>
-            """ if allow_download else ""
+            # Pas de lien téléchargement en bas de page
+            download_link_html = ""
 
             html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -137,7 +136,18 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
   <style>
     body {{ font-family: Arial, sans-serif; padding: 20px; }}
     #timer {{ font-size: 20px; margin-bottom: 10px; }}
-    object, embed {{ width: 100%; height: 600px; }}
+    object, embed {{ width: 100%; height: 600px; border: 1px solid #ccc; }}
+
+    /* Si impression ou téléchargement désactivés, bloquer interaction PDF */
+    {'' if allow_print and allow_download else '''
+    object, embed {{
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      pointer-events: none;
+    }}
+    '''}
   </style>
 </head>
 <body>
@@ -222,25 +232,21 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
 </html>
 """
 
-            with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
-                f.write(html)
+                    with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
+            f.write(generate_manifest(title, original_pdf_name, scorm_version))
 
-            manifest_xml = generate_manifest(title, original_pdf_name, scorm_version)
+        zipf = zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
+        for root, _, files in os.walk(temp_dir):
+            for file in files:
+                full_path = os.path.join(root, file)
+                arcname = os.path.relpath(full_path, temp_dir)
+                zipf.write(full_path, arcname)
+        zipf.close()
+        shutil.rmtree(temp_dir)
 
-            with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
-                f.write(manifest_xml)
+    create_scorm_package(title, pdf_file, total_seconds, scorm_version, allow_download, allow_print)
 
-            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-                for foldername, _, filenames in os.walk(temp_dir):
-                    for filename in filenames:
-                        filepath = os.path.join(foldername, filename)
-                        arcname = os.path.relpath(filepath, temp_dir)
-                        zipf.write(filepath, arcname)
+    st.success("✅ Package SCORM généré avec succès.")
+    with open(zip_path, "rb") as f:
+        st.download_button("⬇️ Télécharger le package SCORM", data=f, file_name=f"{sanitize_title(title)}.zip")
 
-            shutil.rmtree(temp_dir)
-
-        create_scorm_package(title, pdf_file, total_seconds, scorm_version, allow_download, allow_print)
-
-        st.success("✅ Package SCORM généré avec succès.")
-        with open(zip_path, "rb") as f:
-            st.download_button("📅 Télécharger le package SCORM", f, file_name=f"{sanitize_title(title)}.zip")
