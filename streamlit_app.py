@@ -14,6 +14,11 @@ pdf_file = st.file_uploader("Téléversez un fichier PDF", type="pdf")
 # Durée au format HH:MM:SS
 time_input = st.text_input("Temps de complétion requis (HH:MM:SS)", "00:05:00")
 
+# --- NOUVEAU ---
+allow_download = st.checkbox("Autoriser le téléchargement du PDF", value=True)
+allow_print = st.checkbox("Autoriser l'impression du PDF", value=True)
+# ----------------
+
 def parse_hms(hms_str):
     match = re.match(r"^(\d{1,2}):(\d{2}):(\d{2})$", hms_str)
     if not match:
@@ -36,40 +41,40 @@ def generate_manifest(title, pdf_name, scorm_version):
     <metadata>
       <schema>ADL SCORM</schema>
       <schemaversion>{scorm_version}</schemaversion>
-      <lom xmlns=\"http://ltsc.ieee.org/xsd/LOM\">
+      <lom xmlns="http://ltsc.ieee.org/xsd/LOM">
         <general>
           <title>
-            <string language=\"fr\">{title}</string>
+            <string language="fr">{title}</string>
           </title>
           <description>
-            <string language=\"fr\">Module PDF avec timer et complétion automatique</string>
+            <string language="fr">Module PDF avec timer et complétion automatique</string>
           </description>
         </general>
       </lom>
     </metadata>
     """
 
-    manifest = f"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<manifest identifier=\"{manifest_id}\" version=\"1.0\"
-          xmlns=\"http://www.imsglobal.org/xsd/imscp_v1p1\"
-          xmlns:adlcp=\"http://www.adlnet.org/xsd/adlcp_v1p3\"
-          xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"
-          xsi:schemaLocation=\"http://www.imsglobal.org/xsd/imscp_v1p1 
+    manifest = f"""<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="{manifest_id}" version="1.0"
+          xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
+          xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_v1p3"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1 
           imscp_v1p1.xsd
           http://www.adlnet.org/xsd/adlcp_v1p3 
-          adlcp_v1p3.xsd\">
-  <organizations default=\"org1\">
-    <organization identifier=\"org1\">
+          adlcp_v1p3.xsd">
+  <organizations default="org1">
+    <organization identifier="org1">
       <title>{title}</title>
-      <item identifier=\"item1\" identifierref=\"res1\">
+      <item identifier="item1" identifierref="res1">
         <title>{title}</title>
       </item>
     </organization>
   </organizations>
   <resources>
-    <resource identifier=\"res1\" type=\"webcontent\" adlcp:scormType=\"sco\" href=\"index.html\">
-      <file href=\"index.html\"/>
-      <file href=\"{pdf_name}\"/>
+    <resource identifier="res1" type="webcontent" adlcp:scormType="sco" href="index.html">
+      <file href="index.html"/>
+      <file href="{pdf_name}"/>
     </resource>
   </resources>
   {lom_metadata}
@@ -107,28 +112,42 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
             else:
                 initial_display = f"{seconds_required}s"
 
+            # Gestion CSS & JS pour contrôle téléchargement et impression
+            download_css = "" if allow_download else "pointer-events:none; user-select:none;"
+            print_js = "" if allow_print else """
+            window.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                    e.preventDefault();
+                    alert('L\'impression est désactivée pour ce document.');
+                }
+            });
+            """
+
             html = f"""<!DOCTYPE html>
-<html lang=\"fr\">
+<html lang="fr">
 <head>
-  <meta charset=\"UTF-8\" />
+  <meta charset="UTF-8" />
   <title>{title}</title>
   <style>
     body {{ font-family: Arial, sans-serif; padding: 20px; }}
     #timer {{ font-size: 20px; margin-bottom: 10px; }}
+    object, embed {{ {download_css} }}
   </style>
 </head>
 <body>
   <h1>{title}</h1>
   <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après le temps requis.</p>
-  <div id=\"timer\">Temps requis : {initial_display}</div>
+  <div id="timer">Temps requis : {initial_display}</div>
 
-  <object data=\"{original_pdf_name}\" type=\"application/pdf\" width=\"100%\" height=\"600px\">
-    <embed src=\"{original_pdf_name}\" type=\"application/pdf\" width=\"100%\" height=\"600px\" />
-    <p>Votre navigateur ne peut pas afficher le PDF. <a href=\"{original_pdf_name}\" target=\"_blank\">Cliquez ici pour le télécharger</a>.</p>
+  <object data="{original_pdf_name}" type="application/pdf" width="100%" height="600px">
+    <embed src="{original_pdf_name}" type="application/pdf" width="100%" height="600px" style="{download_css}" />
+    <p>Votre navigateur ne peut pas afficher le PDF. <a href="{original_pdf_name}" target="_blank" {'style="pointer-events:none;color:gray;"' if not allow_download else ''}>Cliquez ici pour le télécharger</a>.</p>
   </object>
 
   <script>
-    const SCORM_VERSION = \"{scorm_version}\";
+    {print_js}
+
+    const SCORM_VERSION = "{scorm_version}";
     const TIME_TO_COMPLETE = {seconds_required};
     let remaining = TIME_TO_COMPLETE;
 
@@ -146,7 +165,6 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
           const m = Math.floor(remaining / 60);
           const s = remaining % 60;
           text = "Temps restant : " + m.toString().padStart(2, '0') + ":" + s.toString().padStart(2, '0');
-
         }}
 
         timerDiv.innerText = text;
