@@ -60,7 +60,7 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
 </head>
 <body>
   <h1>{title}</h1>
-  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après {seconds_required} secondes.</p>
+  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après {seconds_required*60} minutes.</p>
   <div id="timer">Temps restant : {seconds_required} secondes</div>
 
   <object data="document.pdf" type="application/pdf" width="100%" height="600px">
