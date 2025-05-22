@@ -232,7 +232,7 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
 </html>
 """
 
-                    with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
+        with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
             f.write(generate_manifest(title, original_pdf_name, scorm_version))
 
         zipf = zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
