@@ -53,12 +53,7 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
 </head>
 <body>
   <h1>{title}</h1>
-  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après {seconds_required} secondes.</p>
-  <div id="timer">Temps requis : {
-    (f"{seconds_required//3600}h " if seconds_required//3600 > 0 else "") +
-    (f"{(seconds_required%3600)//60}m " if (seconds_required%3600)//60 > 0 else "") +
-    (f"{seconds_required%60}s" if seconds_required%60 > 0 else "")
-  }</div>
+  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété dès que le compteur atteindra 0.</p>
   <div id="timer">Temps restant : {seconds_required} secondes</div>
   
 
