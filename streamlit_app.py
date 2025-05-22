@@ -16,7 +16,7 @@ def create_scorm_package(title, pdf_file, seconds_required, scorm_version):
     with open(pdf_path, "wb") as f:
         f.write(pdf_file.read())
 
-    minutes_ms = minutes_required * 60 * 1000
+    minutes_ms = seconds_required * 60 * 1000
 
     # Script SCORM (JS) simplifié
     scorm_script = """
