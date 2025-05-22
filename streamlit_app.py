@@ -116,7 +116,7 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
             });
             """ if not (allow_download and allow_print) else ""
 
-html = f"""<!DOCTYPE html>
+            html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -220,4 +220,18 @@ html = f"""<!DOCTYPE html>
                         zipf.write(full_path, arcname)
 
             shutil.rmtree(temp_dir)
+            return zip_path
 
+        final_zip_path = create_scorm_package(
+            title, pdf_file, total_seconds, scorm_version,
+            allow_download, allow_print, zip_path
+        )
+
+        st.success("✅ Package SCORM généré avec succès.")
+        with open(final_zip_path, "rb") as f:
+            st.download_button(
+                label="📥 Télécharger le package SCORM",
+                data=f,
+                file_name=f"{sanitize_title(title)}.zip",
+                mime="application/zip"
+            )
