@@ -63,7 +63,7 @@ window.onload = completeAfterDelay;
 <body>
   <h1>{title}</h1>
   <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après {seconds_required} secondes.</p>
-  <div id="timer">Temps restant : {minutes_required}:00</div>
+  <div id="timer">Temps restant : {seconds_required}</div>
   <iframe src="document.pdf"></iframe>
 
   <script>
