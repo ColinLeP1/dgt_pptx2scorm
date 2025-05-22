@@ -3,6 +3,7 @@ import os
 import zipfile
 import uuid
 import shutil
+import re
 from PyPDF2 import PdfReader
 
 # Crée un dossier temporaire avec fichier SCORM
@@ -179,7 +180,18 @@ if pdf_file:
     default_title = os.path.splitext(pdf_file.name)[0]
 title = st.text_input("Titre du module", default_title)
 scorm_version = st.radio("Version SCORM", ["1.2", "2004"])
-minutes = st.slider("Temps de complétion requis (minutes)", min_value=1, max_value=60, value=5)
+time_input = st.text_input("Temps de complétion requis (HH:MM:SS)", "00:05:00")
+
+def parse_hms(hms_str):
+    match = re.match(r"^(\d{1,2}):(\d{2}):(\d{2})$", hms_str)
+    if not match:
+        return None
+    h, m, s = map(int, match.groups())
+    return h * 3600 + m * 60 + s
+
+total_seconds = parse_hms(time_input)
+if total_seconds is None:
+    st.error("Format invalide. Veuillez utiliser HH:MM:SS.")
 
 if pdf_file and st.button("Générer le package SCORM"):
     try:
