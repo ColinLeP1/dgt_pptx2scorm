@@ -14,11 +14,6 @@ pdf_file = st.file_uploader("Téléversez un fichier PDF", type="pdf")
 # Durée au format HH:MM:SS
 time_input = st.text_input("Temps de complétion requis (HH:MM:SS)", "00:05:00")
 
-# --- NOUVEAU ---
-allow_download = st.checkbox("Autoriser le téléchargement du PDF", value=True)
-allow_print = st.checkbox("Autoriser l'impression du PDF", value=True)
-# ----------------
-
 def parse_hms(hms_str):
     match = re.match(r"^(\d{1,2}):(\d{2}):(\d{2})$", hms_str)
     if not match:
@@ -87,12 +82,16 @@ default_title = os.path.splitext(pdf_file.name)[0] if pdf_file else ""
 title = st.text_input("Titre du module", default_title)
 scorm_version = st.selectbox("Version SCORM", ["1.2", "2004"])
 
+# Nouveaux checkbox pour contrôle téléchargement/impression
+allow_download = st.checkbox("Autoriser le téléchargement du PDF", value=True)
+allow_print = st.checkbox("Autoriser l'impression du PDF", value=True)
+
 if pdf_file and total_seconds and st.button("Générer le package SCORM"):
     with st.spinner("📦 Génération en cours..."):
         output_zip = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
         zip_path = output_zip.name
 
-        def create_scorm_package(title, pdf_file, seconds_required, scorm_version):
+        def create_scorm_package(title, pdf_file, seconds_required, scorm_version, allow_download, allow_print):
             temp_dir = tempfile.mkdtemp()
 
             original_pdf_name = re.sub(r'[^\w\-.]', '_', pdf_file.name)
@@ -112,8 +111,10 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
             else:
                 initial_display = f"{seconds_required}s"
 
-            # Gestion CSS & JS pour contrôle téléchargement et impression
-            download_css = "" if allow_download else "pointer-events:none; user-select:none;"
+            # Gérer style du lien téléchargement selon checkbox
+            download_link_style = "" if allow_download else "display:none;"
+
+            # JS pour bloquer impression si non autorisé
             print_js = "" if allow_print else """
             window.addEventListener('keydown', function(e) {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
@@ -131,7 +132,6 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
   <style>
     body {{ font-family: Arial, sans-serif; padding: 20px; }}
     #timer {{ font-size: 20px; margin-bottom: 10px; }}
-    object, embed {{ {download_css} }}
   </style>
 </head>
 <body>
@@ -140,8 +140,10 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
   <div id="timer">Temps requis : {initial_display}</div>
 
   <object data="{original_pdf_name}" type="application/pdf" width="100%" height="600px">
-    <embed src="{original_pdf_name}" type="application/pdf" width="100%" height="600px" style="{download_css}" />
-    <p>Votre navigateur ne peut pas afficher le PDF. <a href="{original_pdf_name}" target="_blank" {'style="pointer-events:none;color:gray;"' if not allow_download else ''}>Cliquez ici pour le télécharger</a>.</p>
+    <embed src="{original_pdf_name}" type="application/pdf" width="100%" height="600px" />
+    <p>Votre navigateur ne peut pas afficher le PDF. 
+      <a href="{original_pdf_name}" target="_blank" style="{download_link_style}">Cliquez ici pour le télécharger</a>.
+    </p>
   </object>
 
   <script>
@@ -234,7 +236,7 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
 
             shutil.rmtree(temp_dir)
 
-        create_scorm_package(title, pdf_file, total_seconds, scorm_version)
+        create_scorm_package(title, pdf_file, total_seconds, scorm_version, allow_download, allow_print)
 
         st.success("✅ Package SCORM généré avec succès.")
         with open(zip_path, "rb") as f:
