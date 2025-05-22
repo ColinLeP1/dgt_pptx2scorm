@@ -110,7 +110,10 @@ window.onload = completeAfterDelay;
 st.title("📘 Convertisseur PDF vers SCORM avec condition de temps")
 
 pdf_file = st.file_uploader("Téléversez un fichier PDF", type=["pdf"])
-title = st.text_input("Titre du module", "Module SCORM")
+default_title = ""
+if pdf_file:
+    default_title = os.path.splitext(pdf_file.name)[0]
+title = st.text_input("Titre du module", default_title)
 scorm_version = st.radio("Version SCORM", ["1.2", "2004"])
 minutes = st.slider("Temps de complétion requis (minutes)", min_value=1, max_value=60, value=5)
 
