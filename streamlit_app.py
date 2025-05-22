@@ -3,8 +3,10 @@ import os
 import zipfile
 import uuid
 import shutil
+import re
 from PyPDF2 import PdfReader
 
+# Crée un dossier temporaire avec fichier SCORM
 def create_scorm_package(title, pdf_file, minutes_required, scorm_version):
     uid = str(uuid.uuid4())
     folder = f"scorm_{uid}"
@@ -16,49 +18,31 @@ def create_scorm_package(title, pdf_file, minutes_required, scorm_version):
 
     minutes_ms = minutes_required * 60 * 1000
 
-    scorm_js = """
+    # Script SCORM (JS) simplifié
+    scorm_script = """
 <script>
 function findAPI(win) {
+    var attempts = 0;
     while ((win.API == null) && (win.parent != null) && (win.parent != win)) {
+        attempts++;
+        if (attempts > 10) return null;
         win = win.parent;
     }
     return win.API;
 }
 
-function findAPI2004(win) {
-    while ((win.API_1484_11 == null) && (win.parent != null) && (win.parent != win)) {
-        win = win.parent;
-    }
-    return win.API_1484_11;
-}
-
 function completeAfterDelay() {
-    var scormVersion = SCORM_VERSION;
-    var timeToComplete = TIME_TO_COMPLETE;
-
-    var api = (scormVersion === "1.2") ? findAPI(window) : findAPI2004(window);
-
+    var api = findAPI(window);
     if (api) {
-        if (scormVersion === "1.2") {
-            api.LMSInitialize("");
-        } else {
-            api.Initialize("");
-        }
-
+        api.LMSInitialize("");
         setTimeout(() => {
-            if (scormVersion === "1.2") {
-                api.LMSSetValue("cmi.core.lesson_status", "completed");
-                api.LMSCommit("");
-                api.LMSFinish("");
-            } else {
-                api.SetValue("cmi.completion_status", "completed");
-                api.Commit("");
-                api.Terminate("");
-            }
-            console.log("SCORM complété après le délai.");
-        }, timeToComplete);
+            api.LMSSetValue("cmi.core.lesson_status", "completed");
+            api.LMSCommit("");
+            api.LMSFinish("");
+            console.log("Cours terminé (délai écoulé)");
+        }, TIME_TO_COMPLETE);
     } else {
-        console.warn("API SCORM non trouvée.");
+        console.warn("API SCORM non trouvée");
     }
 }
 window.onload = completeAfterDelay;
@@ -68,25 +52,89 @@ window.onload = completeAfterDelay;
     html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>{title}</title>
+  <meta charset="UTF-8">
+  <title>{title}</title>
+  <style>
+    body {{ font-family: sans-serif; text-align: center; padding: 20px; }}
+    iframe {{ width: 100%; height: 600px; border: 1px solid #ccc; }}
+    #timer {{ font-size: 2em; margin: 20px 0; color: #d9534f; }}
+  </style>
 </head>
 <body>
-    <h1>{title}</h1>
-    <p>Ce module sera complété après {minutes_required} minute(s).</p>
-    <iframe src="document.pdf" width="100%" height="600px"></iframe>
-    <script>
+  <h1>{title}</h1>
+  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après {minutes_required} minute(s).</p>
+  <div id="timer">Temps restant : {minutes_required}:00</div>
+  <iframe src="document.pdf"></iframe>
+
+  <script>
+    const TIME_TO_COMPLETE = {minutes_required * 60}; // en secondes
     const SCORM_VERSION = "{scorm_version}";
-    const TIME_TO_COMPLETE = {minutes_ms};
-    </script>
-    {scorm_js}
+    let remaining = TIME_TO_COMPLETE;
+
+    function formatTime(seconds) {{
+      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const s = (seconds % 60).toString().padStart(2, '0');
+      return `${{m}}:${{s}}`;
+    }}
+
+    function updateTimer() {{
+      const timerDiv = document.getElementById("timer");
+      if (remaining > 0) {{
+        timerDiv.innerText = "Temps restant : " + formatTime(remaining);
+        remaining--;
+      }} else {{
+        completeScorm();
+        timerDiv.innerText = "✅ Temps écoulé, module complété.";
+        clearInterval(interval);
+      }}
+    }}
+
+    function findAPI(win) {{
+      while ((win.API == null) && (win.parent != null) && (win.parent != win)) {{
+        win = win.parent;
+      }}
+      return win.API;
+    }}
+
+    function findAPI2004(win) {{
+      while ((win.API_1484_11 == null) && (win.parent != null) && (win.parent != win)) {{
+        win = win.parent;
+      }}
+      return win.API_1484_11;
+    }}
+
+    function completeScorm() {{
+      let api = SCORM_VERSION === "1.2" ? findAPI(window) : findAPI2004(window);
+      if (!api) {{
+        console.warn("API SCORM non trouvée");
+        return;
+      }}
+
+      if (SCORM_VERSION === "1.2") {{
+        api.LMSInitialize("");
+        api.LMSSetValue("cmi.core.lesson_status", "completed");
+        api.LMSCommit("");
+        api.LMSFinish("");
+      }} else {{
+        api.Initialize("");
+        api.SetValue("cmi.completion_status", "completed");
+        api.Commit("");
+        api.Terminate("");
+      }}
+    }}
+
+    const interval = setInterval(updateTimer, 1000);
+    updateTimer();
+  </script>
 </body>
 </html>
 """
 
+
     with open(os.path.join(folder, "index.html"), "w", encoding="utf-8") as f:
         f.write(html)
 
+    # SCORM manifest minimal
     manifest = f'''<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="com.example.pdf.scorm" version="1.0"
     xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
@@ -123,21 +171,36 @@ window.onload = completeAfterDelay;
     shutil.rmtree(folder)
     return zip_filename
 
-# Streamlit UI
+# App Streamlit
 st.title("📘 Convertisseur PDF vers SCORM avec condition de temps")
 
 pdf_file = st.file_uploader("Téléversez un fichier PDF", type=["pdf"])
-title = st.text_input("Titre du module", "Module SCORM")
+default_title = ""
+if pdf_file:
+    default_title = os.path.splitext(pdf_file.name)[0]
+title = st.text_input("Titre du module", default_title)
 scorm_version = st.radio("Version SCORM", ["1.2", "2004"])
-minutes = st.slider("Temps de complétion requis (minutes)", min_value=1, max_value=60, value=5)
+time_input = st.text_input("Temps de complétion requis (HH:MM:SS)", "00:05:00")
+
+def parse_hms(hms_str):
+    match = re.match(r"^(\d{1,2}):(\d{2}):(\d{2})$", hms_str)
+    if not match:
+        return None
+    h, m, s = map(int, match.groups())
+    return h * 3600 + m * 60 + s
+
+total_seconds = parse_hms(time_input)
+if total_seconds is None:
+    st.error("Format invalide. Veuillez utiliser HH:MM:SS.")
 
 if pdf_file and st.button("Générer le package SCORM"):
     try:
         reader = PdfReader(pdf_file)
+        num_pages = len(reader.pages)
+
         zip_path = create_scorm_package(title, pdf_file, minutes, scorm_version)
 
         with open(zip_path, "rb") as f:
-            st.success("SCORM généré avec succès ✅")
             st.download_button("📥 Télécharger le SCORM", f, file_name=f"{title.replace(' ', '_')}.zip")
     except Exception as e:
-        st.error(f"Erreur : {e}")
+        st.error(f"Erreur lors du traitement du PDF : {e}")
