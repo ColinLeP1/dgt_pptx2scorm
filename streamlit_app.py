@@ -77,12 +77,10 @@ def generate_manifest(title, pdf_name, scorm_version):
 """
     return manifest
 
-
 default_title = os.path.splitext(pdf_file.name)[0] if pdf_file else ""
 title = st.text_input("Titre du module", default_title)
 scorm_version = st.selectbox("Version SCORM", ["1.2", "2004"])
 
-# Checkbox pour autoriser téléchargement et impression
 allow_download = st.checkbox("Autoriser le téléchargement du PDF", value=True)
 allow_print = st.checkbox("Autoriser l'impression du PDF", value=True)
 
@@ -111,18 +109,25 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
             else:
                 initial_display = f"{seconds_required}s"
 
-            # Masquer le lien de téléchargement si non autorisé
-            download_link_style = "" if allow_download else "display:none;"
-
-            # Bloquer impression si non autorisé via JS (Ctrl+P / Cmd+P)
+            # JS to disable right-click, Ctrl+P, Ctrl+S if printing disabled
             print_js = "" if allow_print else """
+            window.addEventListener('contextmenu', function(e) {
+              e.preventDefault();
+              alert("Le clic droit est désactivé pour ce document.");
+            });
+
             window.addEventListener('keydown', function(e) {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
-                    e.preventDefault();
-                    alert('L\'impression est désactivée pour ce document.');
-                }
+              if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 's')) {
+                e.preventDefault();
+                alert("L'impression et le téléchargement sont désactivés pour ce document.");
+              }
             });
             """
+
+            # Lien téléchargement affiché seulement si allow_download
+            download_link_html = f"""
+            <p><a href="{original_pdf_name}" target="_blank" download>Télécharger le PDF</a></p>
+            """ if allow_download else ""
 
             html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -132,6 +137,7 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
   <style>
     body {{ font-family: Arial, sans-serif; padding: 20px; }}
     #timer {{ font-size: 20px; margin-bottom: 10px; }}
+    object, embed {{ width: 100%; height: 600px; }}
   </style>
 </head>
 <body>
@@ -139,12 +145,12 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
   <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après le temps requis.</p>
   <div id="timer">Temps requis : {initial_display}</div>
 
-  <object data="{original_pdf_name}" type="application/pdf" width="100%" height="600px">
-    <embed src="{original_pdf_name}" type="application/pdf" width="100%" height="600px" />
-    <p>Votre navigateur ne peut pas afficher le PDF. 
-      <a href="{original_pdf_name}" target="_blank" style="{download_link_style}">Cliquez ici pour le télécharger</a>.
-    </p>
+  <object data="{original_pdf_name}" type="application/pdf">
+    <embed src="{original_pdf_name}" type="application/pdf" />
+    <p>Votre navigateur ne peut pas afficher le PDF.</p>
   </object>
+
+  {download_link_html}
 
   <script>
     {print_js}
@@ -155,10 +161,8 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
 
     function updateTimer() {{
       const timerDiv = document.getElementById("timer");
-
       if (remaining > 0) {{
         let text = "";
-
         if (remaining >= 3600) {{
           const h = Math.floor(remaining / 3600);
           const m = Math.floor((remaining % 3600) / 60);
@@ -168,7 +172,6 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
           const s = remaining % 60;
           text = "Temps restant : " + m.toString().padStart(2, '0') + ":" + s.toString().padStart(2, '0');
         }}
-
         timerDiv.innerText = text;
         remaining--;
       }} else {{
