@@ -3,8 +3,6 @@ import zipfile
 import os
 import tempfile
 import shutil
-from datetime import datetime
-from PyPDF2 import PdfReader
 import re
 
 st.set_page_config(page_title="Convertisseur PDF vers SCORM", layout="centered")
@@ -15,7 +13,6 @@ pdf_file = st.file_uploader("Téléversez un fichier PDF", type="pdf")
 # Durée au format HH:MM:SS
 time_input = st.text_input("Temps de complétion requis (HH:MM:SS)", "00:05:00")
 
-# Parse HH:MM:SS en secondes
 def parse_hms(hms_str):
     match = re.match(r"^(\d{1,2}):(\d{2}):(\d{2})$", hms_str)
     if not match:
@@ -27,13 +24,11 @@ total_seconds = parse_hms(time_input)
 if total_seconds is None:
     st.error("⛔ Format invalide. Veuillez utiliser HH:MM:SS.")
 
-# Titre par défaut : nom du fichier PDF
 default_title = os.path.splitext(pdf_file.name)[0] if pdf_file else ""
 title = st.text_input("Titre du module", default_title)
 
 scorm_version = st.selectbox("Version SCORM", ["1.2", "2004"])
 
-# Génération du package
 if pdf_file and total_seconds and st.button("Générer le package SCORM"):
     with st.spinner("📦 Génération en cours..."):
         output_zip = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
@@ -42,16 +37,14 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
         def create_scorm_package(title, pdf_file, seconds_required, scorm_version):
             temp_dir = tempfile.mkdtemp()
 
-            # Sauvegarder le PDF
             pdf_path = os.path.join(temp_dir, "document.pdf")
             with open(pdf_path, "wb") as f:
                 f.write(pdf_file.read())
 
-            # HTML principal avec timer et affichage PDF
             html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>{title}</title>
   <style>
     body {{ font-family: Arial, sans-serif; padding: 20px; }}
@@ -60,7 +53,7 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
 </head>
 <body>
   <h1>{title}</h1>
-  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après {seconds_required//60} minutes.</p>
+  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après {seconds_required} secondes.</p>
   <div id="timer">Temps restant : {seconds_required} secondes</div>
 
   <object data="document.pdf" type="application/pdf" width="100%" height="600px">
@@ -77,16 +70,19 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
       const timerDiv = document.getElementById("timer");
 
       if (remaining > 0) {{
-        if (remaining > 60) {{
+        let text = "";
+
+        if (remaining >= 3600) {{
           const h = Math.floor(remaining / 3600);
           const m = Math.floor((remaining % 3600) / 60);
-          let text = "Temps restant : ";
-          if (h > 0) text += `${{h}}h `;
-          text += `${{m}} min`;
-          timerDiv.innerText = text;
+          text = `Temps restant : ${{h}}h ${{m}}m`;
         }} else {{
-          timerDiv.innerText = `Temps restant : ${{remaining}} seconde${{remaining > 1 ? "s" : ""}}`;
+          const m = Math.floor(remaining / 60);
+          const s = remaining % 60;
+          text = `Temps restant : ${{m.toString().padStart(2, '0')}}:${{s.toString().padStart(2, '0')}}`;
         }}
+
+        timerDiv.innerText = text;
         remaining--;
       }} else {{
         completeScorm();
@@ -135,10 +131,10 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
 </body>
 </html>
 """
+
             with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
                 f.write(html)
 
-            # Créer manifeste SCORM
             manifest = f"""<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="com.example.scorm" version="1.0"
           xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
@@ -167,7 +163,6 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
             with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
                 f.write(manifest)
 
-            # Création ZIP
             with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
                 for foldername, _, filenames in os.walk(temp_dir):
                     for filename in filenames:
