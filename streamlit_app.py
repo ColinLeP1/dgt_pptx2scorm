@@ -116,7 +116,7 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
             });
             """ if not (allow_download and allow_print) else ""
 
-                      html = f"""<!DOCTYPE html>
+html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
