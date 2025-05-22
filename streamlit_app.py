@@ -62,12 +62,12 @@ window.onload = completeAfterDelay;
 </head>
 <body>
   <h1>{title}</h1>
-  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après {seconds_required} secondes.</p>
+  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après {seconds_required} seconds.</p>
   <div id="timer">Temps restant : {seconds_required}</div>
   <iframe src="document.pdf"></iframe>
 
   <script>
-    const TIME_TO_COMPLETE = {secondes_required * 60}; // en secondes
+    const TIME_TO_COMPLETE = {seconds_required * 60}; // en secondes
     const SCORM_VERSION = "{scorm_version}";
     let remaining = TIME_TO_COMPLETE;
 
