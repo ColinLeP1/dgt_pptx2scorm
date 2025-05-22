@@ -74,23 +74,70 @@ window.onload = completeAfterDelay;
     const SCORM_VERSION = "{scorm_version}";
     let remaining = TIME_TO_COMPLETE;
 
-    function formatTime(seconds) {{
-      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-      const s = (seconds % 60).toString().padStart(2, '0');
-      return `${{m}}:${{s}}`;
-    }}
+    <script>
+  const TIME_TO_COMPLETE = {seconds_required}; // en secondes
+  let remaining = TIME_TO_COMPLETE;
 
-    function updateTimer() {{
-      const timerDiv = document.getElementById("timer");
-      if (remaining > 0) {{
-        timerDiv.innerText = "Temps restant : " + formatTime(remaining);
-        remaining--;
-      }} else {{
-        completeScorm();
-        timerDiv.innerText = "✅ Temps écoulé, module complété.";
-        clearInterval(interval);
-      }}
-    }}
+  function updateTimer() {
+    const timerDiv = document.getElementById("timer");
+
+    if (remaining > 0) {
+      if (remaining > 60) {
+        const h = Math.floor(remaining / 3600);
+        const m = Math.floor((remaining % 3600) / 60);
+        let text = "Temps restant : ";
+        if (h > 0) text += `${h}h `;
+        text += `${m} min`;
+        timerDiv.innerText = text;
+      } else {
+        timerDiv.innerText = `Temps restant : ${remaining} seconde${remaining > 1 ? "s" : ""}`;
+      }
+      remaining--;
+    } else {
+      completeScorm();
+      timerDiv.innerText = "✅ Temps écoulé, module complété.";
+      clearInterval(interval);
+    }
+  }
+
+  // Fonctions SCORM (inchangées)
+  function findAPI(win) {
+    while ((win.API == null) && (win.parent != null) && (win.parent != win)) {
+      win = win.parent;
+    }
+    return win.API;
+  }
+
+  function findAPI2004(win) {
+    while ((win.API_1484_11 == null) && (win.parent != null) && (win.parent != win)) {
+      win = win.parent;
+    }
+    return win.API_1484_11;
+  }
+
+  function completeScorm() {
+    let api = SCORM_VERSION === "1.2" ? findAPI(window) : findAPI2004(window);
+    if (!api) {
+      console.warn("API SCORM non trouvée");
+      return;
+    }
+
+    if (SCORM_VERSION === "1.2") {
+      api.LMSInitialize("");
+      api.LMSSetValue("cmi.core.lesson_status", "completed");
+      api.LMSCommit("");
+      api.LMSFinish("");
+    } else {
+      api.Initialize("");
+      api.SetValue("cmi.completion_status", "completed");
+      api.Commit("");
+      api.Terminate("");
+    }
+  }
+
+  const interval = setInterval(updateTimer, 1000);
+  updateTimer();
+</script>
 
     function findAPI(win) {{
       while ((win.API == null) && (win.parent != null) && (win.parent != win)) {{
