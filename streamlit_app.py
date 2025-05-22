@@ -82,7 +82,7 @@ default_title = os.path.splitext(pdf_file.name)[0] if pdf_file else ""
 title = st.text_input("Titre du module", default_title)
 scorm_version = st.selectbox("Version SCORM", ["1.2", "2004"])
 
-# Nouveaux checkbox pour contrôle téléchargement/impression
+# Checkbox pour autoriser téléchargement et impression
 allow_download = st.checkbox("Autoriser le téléchargement du PDF", value=True)
 allow_print = st.checkbox("Autoriser l'impression du PDF", value=True)
 
@@ -111,10 +111,10 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
             else:
                 initial_display = f"{seconds_required}s"
 
-            # Gérer style du lien téléchargement selon checkbox
+            # Masquer le lien de téléchargement si non autorisé
             download_link_style = "" if allow_download else "display:none;"
 
-            # JS pour bloquer impression si non autorisé
+            # Bloquer impression si non autorisé via JS (Ctrl+P / Cmd+P)
             print_js = "" if allow_print else """
             window.addEventListener('keydown', function(e) {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
