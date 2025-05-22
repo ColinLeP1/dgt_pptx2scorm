@@ -141,11 +141,12 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
         if (remaining >= 3600) {{
           const h = Math.floor(remaining / 3600);
           const m = Math.floor((remaining % 3600) / 60);
-          text = `Temps restant : ${h}h ${m}m`;
+          text = "Temps restant : " + h + "h " + m + "m";
         }} else {{
           const m = Math.floor(remaining / 60);
           const s = remaining % 60;
-          text = `Temps restant : ${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+          text = "Temps restant : " + m.toString().padStart(2, '0') + ":" + s.toString().padStart(2, '0');
+
         }}
 
         timerDiv.innerText = text;
