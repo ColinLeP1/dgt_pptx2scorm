@@ -116,7 +116,7 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
             });
             """ if not (allow_download and allow_print) else ""
 
-            html = f"""<!DOCTYPE html>
+                      html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -124,4 +124,100 @@ if pdf_file and total_seconds and st.button("Générer le package SCORM"):
   <style>
     body {{ font-family: Arial, sans-serif; padding: 20px; }}
     #timer {{ font-size: 20px; margin-bottom: 10px; }}
-    object, embed {{ width: 100%; height: 600px; pointer-events: none;
+    object, embed {{ width: 100%; height: 600px; }}
+  </style>
+</head>
+<body>
+  <h1>{title}</h1>
+  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après le temps requis.</p>
+  <div id="timer">Temps requis : {initial_display}</div>
+
+  <object data="{original_pdf_name}" type="application/pdf">
+    <embed src="{original_pdf_name}" type="application/pdf" />
+    <p>Votre navigateur ne peut pas afficher le PDF.</p>
+  </object>
+
+  <script>
+    {js_protection}
+
+    const SCORM_VERSION = "{scorm_version}";
+    const TIME_TO_COMPLETE = {seconds_required};
+    let remaining = TIME_TO_COMPLETE;
+
+    function updateTimer() {{
+      const timerDiv = document.getElementById("timer");
+      if (remaining > 0) {{
+        let text = "";
+        if (remaining >= 3600) {{
+          const h = Math.floor(remaining / 3600);
+          const m = Math.floor((remaining % 3600) / 60);
+          text = "Temps restant : " + h + "h " + m + "m";
+        }} else {{
+          const m = Math.floor(remaining / 60);
+          const s = remaining % 60;
+          text = "Temps restant : " + m.toString().padStart(2, '0') + ":" + s.toString().padStart(2, '0');
+        }}
+        timerDiv.innerText = text;
+        remaining--;
+      }} else {{
+        completeScorm();
+        timerDiv.innerText = "✅ Temps écoulé, module complété.";
+        clearInterval(interval);
+      }}
+    }}
+
+    function findAPI(win) {{
+      while ((win.API == null) && (win.parent != null) && (win.parent != win)) {{
+        win = win.parent;
+      }}
+      return win.API;
+    }}
+
+    function findAPI2004(win) {{
+      while ((win.API_1484_11 == null) && (win.parent != null) && (win.parent != win)) {{
+        win = win.parent;
+      }}
+      return win.API_1484_11;
+    }}
+
+    function completeScorm() {{
+      let api = SCORM_VERSION === "1.2" ? findAPI(window) : findAPI2004(window);
+      if (!api) {{
+        console.warn("API SCORM non trouvée");
+        return;
+      }}
+
+      if (SCORM_VERSION === "1.2") {{
+        api.LMSInitialize("");
+        api.LMSSetValue("cmi.core.lesson_status", "completed");
+        api.LMSCommit("");
+        api.LMSFinish("");
+      }} else {{
+        api.Initialize("");
+        api.SetValue("cmi.completion_status", "completed");
+        api.Commit("");
+        api.Terminate("");
+      }}
+    }}
+
+    const interval = setInterval(updateTimer, 1000);
+    updateTimer();
+  </script>
+</body>
+</html>"""
+
+            with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
+                f.write(html)
+
+            with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
+                f.write(generate_manifest(title, original_pdf_name, scorm_version))
+
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, _, files in os.walk(temp_dir):
+                    for file in files:
+                        full_path = os.path.join(root, file)
+                        arcname = os.path.relpath(full_path, temp_dir)
+                        zipf.write(full_path, arcname)
+
+            shutil.rmtree(temp_dir)
+
