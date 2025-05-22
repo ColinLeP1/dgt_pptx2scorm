@@ -64,7 +64,10 @@ window.onload = completeAfterDelay;
   <h1>{title}</h1>
   <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après {seconds_required} seconds.</p>
   <div id="timer">Temps restant : {seconds_required}</div>
-  <iframe src="document.pdf"></iframe>
+  <object data="document.pdf" type="application/pdf" width="100%" height="600px">
+  <embed src="document.pdf" type="application/pdf" width="100%" height="600px" />
+  <p>Votre navigateur ne peut pas afficher les PDF. <a href="document.pdf" target="_blank">Cliquez ici pour le télécharger</a>.</p>
+</object>
 
   <script>
     const TIME_TO_COMPLETE = {seconds_required * 60}; // en secondes
