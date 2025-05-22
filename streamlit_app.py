@@ -7,7 +7,7 @@ import re
 from PyPDF2 import PdfReader
 
 # Crée un dossier temporaire avec fichier SCORM
-def create_scorm_package(title, pdf_file, minutes_required, scorm_version):
+def create_scorm_package(title, pdf_file, seconds_required, scorm_version):
     uid = str(uuid.uuid4())
     folder = f"scorm_{uid}"
     os.makedirs(folder, exist_ok=True)
@@ -62,12 +62,12 @@ window.onload = completeAfterDelay;
 </head>
 <body>
   <h1>{title}</h1>
-  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après {minutes_required} minute(s).</p>
+  <p>Veuillez lire le document ci-dessous. Le module sera marqué comme complété après {seconds_required} secondes.</p>
   <div id="timer">Temps restant : {minutes_required}:00</div>
   <iframe src="document.pdf"></iframe>
 
   <script>
-    const TIME_TO_COMPLETE = {minutes_required * 60}; // en secondes
+    const TIME_TO_COMPLETE = {secondes_required * 60}; // en secondes
     const SCORM_VERSION = "{scorm_version}";
     let remaining = TIME_TO_COMPLETE;
 
@@ -193,12 +193,12 @@ total_seconds = parse_hms(time_input)
 if total_seconds is None:
     st.error("Format invalide. Veuillez utiliser HH:MM:SS.")
 
-if pdf_file and st.button("Générer le package SCORM"):
+if pdf_file and total_seconds and st.button("Générer le package SCORM"):
     try:
         reader = PdfReader(pdf_file)
         num_pages = len(reader.pages)
 
-        zip_path = create_scorm_package(title, pdf_file, minutes, scorm_version)
+        zip_path = create_scorm_package(title, pdf_file, total_seconds, scorm_version)
 
         with open(zip_path, "rb") as f:
             st.download_button("📥 Télécharger le SCORM", f, file_name=f"{title.replace(' ', '_')}.zip")
