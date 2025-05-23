@@ -25,8 +25,7 @@ if scorm_12:
     scorm_2004 = False
 if scorm_2004:
     # ne désactive pas scorm_12 pour permettre modification (voir discussion)
-
-    pass  # On laisse les 2 visibles, mais le code ne laisse générer que si un seul est coché
+    scorm_12 = False
 
 # Critère validation
 validation_criteria = st.selectbox(
