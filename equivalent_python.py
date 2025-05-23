@@ -23,6 +23,7 @@ scorm_2004 = st.checkbox("SCORM 2004", key="scorm2004")
 # Gestion du choix unique de version SCORM (affichage dynamique)
 if not scorm_12 and not scorm_2004:
     st.badge("Veuillez sélectionner une version SCORM.")
+    disable_generate = True
 if scorm_12 and scorm_2004:
     st.error("❌ Veuillez sélectionner une seule version SCORM.")
     disable_generate = True
