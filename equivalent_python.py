@@ -109,7 +109,100 @@ document.addEventListener("DOMContentLoaded", function() {{
                 f.write(viewer_js_content)
 
             # HTML avec lecteur PDF + timer et intégration viewer.js
-            html_content = f"""<!DOCTYPE html>
+           if validation_criteria == "lecture":
+    # Validation par lecture complète des pages uniquement
+    html_content = f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>{scorm_title}</title>
+  <style>
+    body {{ font-family: sans-serif; background: #f8f9fa; padding: 20px; }}
+    h1 {{ color: #333; }}
+    #validation-status {{ font-weight: bold; margin-bottom: 10px; color: green; }}
+    #pdf-container canvas {{ border: 1px solid #ccc; }}
+    button {{ margin: 5px; }}
+  </style>
+</head>
+<body>
+  <h1>{scorm_title}</h1>
+  <div id="validation-status">Pages lues: 0 / 0</div>
+
+  <div id="pdf-container"></div>
+  <button id="prev-page">Précédent</button>
+  <button id="next-page">Suivant</button>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.15.349/pdf.min.js"></script>
+  <script>
+    let pdfDoc = null;
+    let pagesRead = new Set();
+    let totalPages = 0;
+    let currentPage = 1;
+
+    const url = '{pdf_filename}';
+
+    const loadingTask = pdfjsLib.getDocument(url);
+    loadingTask.promise.then(function(pdf) {{
+      pdfDoc = pdf;
+      totalPages = pdf.numPages;
+      renderPage(1);
+      updateCompletion();
+    }});
+
+    function renderPage(num) {{
+      pdfDoc.getPage(num).then(function(page) {{
+        let viewport = page.getViewport({{scale:1.5}});
+        let canvas = document.getElementById('pdf-render');
+        if (!canvas) {{
+          canvas = document.createElement('canvas');
+          canvas.id = 'pdf-render';
+          document.getElementById('pdf-container').appendChild(canvas);
+        }}
+        let context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        let renderContext = {{
+          canvasContext: context,
+          viewport: viewport
+        }};
+        page.render(renderContext).promise.then(() => {{
+          pagesRead.add(num);
+          updateCompletion();
+        }});
+      }});
+    }}
+
+    function updateCompletion() {{
+      const statusDiv = document.getElementById('validation-status');
+      if (pagesRead.size === totalPages) {{
+        statusDiv.textContent = "✅ Toutes les pages ont été lues.";
+        // Appel possible à l'API SCORM pour notifier la complétion
+      }} else {{
+        statusDiv.textContent = "Pages lues: " + pagesRead.size + " / " + totalPages;
+      }}
+    }}
+
+    document.getElementById('next-page').onclick = function() {{
+      if (currentPage < totalPages) {{
+        currentPage++;
+        renderPage(currentPage);
+      }}
+    }};
+
+    document.getElementById('prev-page').onclick = function() {{
+      if (currentPage > 1) {{
+        currentPage--;
+        renderPage(currentPage);
+      }}
+    }};
+  </script>
+</body>
+</html>
+"""
+elif validation_criteria == "timer":
+    # Validation par timer uniquement
+    html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -123,14 +216,12 @@ document.addEventListener("DOMContentLoaded", function() {{
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <div id="timer">Temps restant : {time_str if show_timer else "00:00:00"}</div>
-  <embed src="{pdf_filename}" type="application/pdf" />
+  <div id="timer">Temps restant : {time_str}</div>
+  <embed src="{pdf_filename}" type="application/pdf" {download_attr} {print_attr}>
 
-  <script src="viewer.js"></script>
   <script>
     let remaining = {seconds_required};
     const timerDiv = document.getElementById("timer");
-    let timer;
 
     function updateTimer() {{
       if (remaining > 0) {{
@@ -148,34 +239,128 @@ document.addEventListener("DOMContentLoaded", function() {{
       }}
     }}
 
-    function startTimer() {{
-      if (!timer) {{
-        timer = setInterval(updateTimer, 1000);
-      }}
-    }}
-
-    function stopTimer() {{
-      if (timer) {{
-        clearInterval(timer);
-        timer = null;
-      }}
-    }}
-
-    document.addEventListener("visibilitychange", function() {{
-      if (document.hidden) {{
-        stopTimer();
-      }} else {{
-        startTimer();
-      }}
-    }});
-
-    if (!document.hidden) {{
-      startTimer();
-    }}
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
   </script>
 </body>
 </html>
 """
+else:
+    # Validation par lecture + timer (both)
+    html_content = f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>{scorm_title}</title>
+  <style>
+    body {{ font-family: sans-serif; background: #f8f9fa; padding: 20px; }}
+    h1 {{ color: #333; }}
+    #validation-status {{ font-weight: bold; margin-bottom: 10px; color: green; }}
+    #timer {{ font-size: 20px; font-weight: bold; margin-bottom: 15px; color: darkblue; }}
+    #pdf-container canvas {{ border: 1px solid #ccc; }}
+    button {{ margin: 5px; }}
+  </style>
+</head>
+<body>
+  <h1>{scorm_title}</h1>
+  <div id="validation-status">Pages lues: 0 / 0</div>
+  <div id="timer">Temps restant : {time_str}</div>
+
+  <div id="pdf-container"></div>
+  <button id="prev-page">Précédent</button>
+  <button id="next-page">Suivant</button>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.15.349/pdf.min.js"></script>
+  <script>
+    let pdfDoc = null;
+    let pagesRead = new Set();
+    let totalPages = 0;
+    let currentPage = 1;
+
+    const url = '{pdf_filename}';
+
+    const loadingTask = pdfjsLib.getDocument(url);
+    loadingTask.promise.then(function(pdf) {{
+      pdfDoc = pdf;
+      totalPages = pdf.numPages;
+      renderPage(1);
+      updateCompletion();
+    }});
+
+    function renderPage(num) {{
+      pdfDoc.getPage(num).then(function(page) {{
+        let viewport = page.getViewport({{scale:1.5}});
+        let canvas = document.getElementById('pdf-render');
+        if (!canvas) {{
+          canvas = document.createElement('canvas');
+          canvas.id = 'pdf-render';
+          document.getElementById('pdf-container').appendChild(canvas);
+        }}
+        let context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        let renderContext = {{
+          canvasContext: context,
+          viewport: viewport
+        }};
+        page.render(renderContext).promise.then(() => {{
+          pagesRead.add(num);
+          updateCompletion();
+        }});
+      }});
+    }}
+
+    function updateCompletion() {{
+      const statusDiv = document.getElementById('validation-status');
+      if (pagesRead.size === totalPages) {{
+        statusDiv.textContent = "✅ Toutes les pages ont été lues.";
+        // Appel possible à l'API SCORM pour notifier la complétion
+      }} else {{
+        statusDiv.textContent = "Pages lues: " + pagesRead.size + " / " + totalPages;
+      }}
+    }}
+
+    document.getElementById('next-page').onclick = function() {{
+      if (currentPage < totalPages) {{
+        currentPage++;
+        renderPage(currentPage);
+      }}
+    }};
+
+    document.getElementById('prev-page').onclick = function() {{
+      if (currentPage > 1) {{
+        currentPage--;
+        renderPage(currentPage);
+      }}
+    }};
+
+    let remaining = {seconds_required};
+    const timerDiv = document.getElementById("timer");
+
+    function updateTimer() {{
+      if (remaining > 0) {{
+        const h = Math.floor(remaining / 3600);
+        const m = Math.floor((remaining % 3600) / 60);
+        const s = remaining % 60;
+        timerDiv.textContent = "Temps restant : " +
+          String(h).padStart(2, '0') + ":" +
+          String(m).padStart(2, '0') + ":" +
+          String(s).padStart(2, '0');
+        remaining--;
+      }} else {{
+        timerDiv.textContent = "✅ Temps écoulé - SCORM {scorm_version}";
+        clearInterval(timer);
+      }}
+    }}
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+  </script>
+</body>
+</html>
+"""
+
 
             with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
                 f.write(html_content)
