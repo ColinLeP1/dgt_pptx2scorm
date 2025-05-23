@@ -27,7 +27,7 @@ if scorm_12 and scorm_2004:
 elif not scorm_12 and not scorm_2004:
     st.badge("Veuillez sélectionner une version SCORM.")
     disable_generate = True
-else : 
+else:
     disable_generate = False
 
 # Critère validation
@@ -109,9 +109,9 @@ document.addEventListener("DOMContentLoaded", function() {{
                 f.write(viewer_js_content)
 
             # HTML avec lecteur PDF + timer et intégration viewer.js
-    if validation_criteria == "lecture":
-    # Validation par lecture complète des pages uniquement
-    html_content = f"""<!DOCTYPE html>
+            if validation_criteria == "Lecture de toutes les pages":
+                # Validation par lecture complète des pages uniquement
+                html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -200,9 +200,11 @@ document.addEventListener("DOMContentLoaded", function() {{
 </body>
 </html>
 """
-elif validation_criteria == "timer":
-    # Validation par timer uniquement
-    html_content = f"""<!DOCTYPE html>
+            elif validation_criteria == "Temps écoulé":
+                # Validation par timer uniquement
+                download_attr = "download" if downloadable else ""
+                print_attr = ""  # Note: impossible de bloquer impression depuis embed HTML nativement
+                html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -221,33 +223,27 @@ elif validation_criteria == "timer":
 
   <script>
     let remaining = {seconds_required};
-    const timerDiv = document.getElementById("timer");
-
-    function updateTimer() {{
-      if (remaining > 0) {{
-        const h = Math.floor(remaining / 3600);
-        const m = Math.floor((remaining % 3600) / 60);
-        const s = remaining % 60;
-        timerDiv.textContent = "Temps restant : " +
-          String(h).padStart(2, '0') + ":" +
-          String(m).padStart(2, '0') + ":" +
-          String(s).padStart(2, '0');
-        remaining--;
+    const timerDiv = document.getElementById('timer');
+    const interval = setInterval(() => {{
+      if (remaining <= 0) {{
+        clearInterval(interval);
+        timerDiv.textContent = "✅ Temps écoulé. Module validé.";
+        // Appel à l'API SCORM pour marquer la complétion
       }} else {{
-        timerDiv.textContent = "✅ Temps écoulé - SCORM {scorm_version}";
-        clearInterval(timer);
+        remaining--;
+        let h = Math.floor(remaining / 3600);
+        let m = Math.floor((remaining % 3600) / 60);
+        let s = remaining % 60;
+        timerDiv.textContent = `Temps restant : ${{h.toString().padStart(2,'0')}}:${{m.toString().padStart(2,'0')}}:${{s.toString().padStart(2,'0')}}`;
       }}
-    }}
-
-    updateTimer();
-    const timer = setInterval(updateTimer, 1000);
+    }}, 1000);
   </script>
 </body>
 </html>
 """
-else:
-    # Validation par lecture + timer (both)
-    html_content = f"""<!DOCTYPE html>
+            else:
+                # Les deux critères
+                html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -276,6 +272,22 @@ else:
     let pagesRead = new Set();
     let totalPages = 0;
     let currentPage = 1;
+
+    let remaining = {seconds_required};
+    const timerDiv = document.getElementById('timer');
+    const interval = setInterval(() => {{
+      if (remaining <= 0) {{
+        clearInterval(interval);
+        timerDiv.textContent = "✅ Temps écoulé.";
+        // Appel API SCORM si besoin
+      }} else {{
+        remaining--;
+        let h = Math.floor(remaining / 3600);
+        let m = Math.floor((remaining % 3600) / 60);
+        let s = remaining % 60;
+        timerDiv.textContent = `Temps restant : ${{h.toString().padStart(2,'0')}}:${{m.toString().padStart(2,'0')}}:${{s.toString().padStart(2,'0')}}`;
+      }}
+    }}, 1000);
 
     const url = '{pdf_filename}';
 
@@ -313,9 +325,9 @@ else:
 
     function updateCompletion() {{
       const statusDiv = document.getElementById('validation-status');
-      if (pagesRead.size === totalPages) {{
-        statusDiv.textContent = "✅ Toutes les pages ont été lues.";
-        // Appel possible à l'API SCORM pour notifier la complétion
+      if (pagesRead.size === totalPages && remaining <= 0) {{
+        statusDiv.textContent = "✅ Module validé (pages lues et temps écoulé).";
+        // API SCORM
       }} else {{
         statusDiv.textContent = "Pages lues: " + pagesRead.size + " / " + totalPages;
       }}
@@ -334,82 +346,26 @@ else:
         renderPage(currentPage);
       }}
     }};
-
-    let remaining = {seconds_required};
-    const timerDiv = document.getElementById("timer");
-
-    function updateTimer() {{
-      if (remaining > 0) {{
-        const h = Math.floor(remaining / 3600);
-        const m = Math.floor((remaining % 3600) / 60);
-        const s = remaining % 60;
-        timerDiv.textContent = "Temps restant : " +
-          String(h).padStart(2, '0') + ":" +
-          String(m).padStart(2, '0') + ":" +
-          String(s).padStart(2, '0');
-        remaining--;
-      }} else {{
-        timerDiv.textContent = "✅ Temps écoulé - SCORM {scorm_version}";
-        clearInterval(timer);
-      }}
-    }}
-
-    updateTimer();
-    const timer = setInterval(updateTimer, 1000);
   </script>
 </body>
 </html>
 """
 
-
             with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
                 f.write(html_content)
 
-            # Manifeste SCORM
-            with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
-                f.write(f"""<?xml version="1.0" encoding="UTF-8"?>
-<manifest identifier="MANIFEST-{scorm_filename}" version="1.0"
-  xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
-  xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_v1p3"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1
-    http://www.imsglobal.org/xsd/imscp_v1p1.xsd
-    http://www.adlnet.org/xsd/adlcp_v1p3
-    http://www.adlnet.org/xsd/adlcp_v1p3.xsd">
-  <organizations default="org1">
-    <organization identifier="org1">
-      <title>{scorm_title}</title>
-      <item identifier="item1" identifierref="res1">
-        <title>{scorm_title}</title>
-      </item>
-    </organization>
-  </organizations>
-  <resources>
-    <resource identifier="res1" type="webcontent" adlcp:scormType="sco" href="index.html">
-      <file href="index.html"/>
-      <file href="{pdf_filename}"/>
-      <file href="viewer.js"/>
-    </resource>
-  </resources>
-</manifest>""")
-
-            # Création du zip
+            # Création du ZIP final
             zip_path = os.path.join(temp_dir, f"{scorm_filename}.zip")
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for folder, _, files in os.walk(temp_dir):
+            with zipfile.ZipFile(zip_path, "w") as zipf:
+                for root, dirs, files in os.walk(temp_dir):
                     for file in files:
-                        if file.endswith(".zip"):
-                            continue
-                        full_path = os.path.join(folder, file)
-                        arcname = os.path.relpath(full_path, temp_dir)
-                        zipf.write(full_path, arcname)
+                        if file != f"{scorm_filename}.zip":
+                            zipf.write(os.path.join(root, file), arcname=file)
 
-            # Proposer le téléchargement
-            with open(zip_path, "rb") as f:
-                st.success("✅ SCORM généré avec succès.")
+            with open(zip_path, "rb") as fzip:
                 st.download_button(
-                    label="📥 Télécharger le SCORM",
-                    data=f,
+                    label="⬇️ Télécharger le package SCORM",
+                    data=fzip,
                     file_name=f"{scorm_filename}.zip",
                     mime="application/zip"
                 )
