@@ -10,26 +10,10 @@ st.title("📦 Générateur de SCORM à partir d’un PDF")
 
 uploaded_file = st.file_uploader("Téléversez un fichier PDF", type="pdf")
 
-# Titre unique utilisé pour le module et le nom de fichier
+# Titre unique
 default_title = uploaded_file.name.replace(".pdf", "") if uploaded_file else "Module_SCORM"
 scorm_title = st.text_input("Titre du module SCORM", value=default_title)
 scorm_filename = re.sub(r"[^\w\-]", "_", scorm_title)
-
-# Timer
-time_str = st.text_input("Temps de visualisation requis (HH:MM:SS)", "00:05:00")
-
-def parse_hms(hms_str):
-    match = re.match(r"^(\d{1,2}):(\d{2}):(\d{2})$", hms_str)
-    if not match:
-        return None
-    h, m, s = map(int, match.groups())
-    return h * 3600 + m * 60 + s
-
-seconds_required = parse_hms(time_str)
-if seconds_required is None:
-    st.error("⛔ Format invalide. Utilisez HH:MM:SS.")
-elif seconds_required > 86400:
-    st.error("⛔ Le temps ne doit pas dépasser 24h.")
 
 # Critère de validation
 validation_criteria = st.selectbox(
@@ -42,39 +26,54 @@ validation_criteria = st.selectbox(
     index=1
 )
 
-# Version SCORM (boutons exclusifs)
-scorm_version = st.radio("Version SCORM", ["SCORM 1.2", "SCORM 2004"])
-if not scorm_version:
-    st.warning("Veuillez choisir une version SCORM.")
+# Timer visible seulement si le critère n’est pas uniquement "Lecture de toutes les pages"
+time_str = "00:05:00"
+if validation_criteria != "Lecture de toutes les pages":
+    time_str = st.text_input("Temps de visualisation requis (HH:MM:SS)", time_str)
 
-# Options téléchargement/impression
+def parse_hms(hms_str):
+    match = re.match(r"^(\d{1,2}):(\d{2}):(\d{2})$", hms_str)
+    if not match:
+        return None
+    h, m, s = map(int, match.groups())
+    return h * 3600 + m * 60 + s
+
+seconds_required = parse_hms(time_str) if validation_criteria != "Lecture de toutes les pages" else 0
+if validation_criteria != "Lecture de toutes les pages" and seconds_required is None:
+    st.error("⛔ Format invalide. Utilisez HH:MM:SS.")
+elif seconds_required > 86400:
+    st.error("⛔ Le temps ne doit pas dépasser 24h.")
+
+# Version SCORM
+scorm_version = st.radio("Version SCORM", ["SCORM 1.2", "SCORM 2004"])
+
+# Options PDF
 make_downloadable = st.checkbox("Autoriser le téléchargement du PDF", value=False)
 make_printable = st.checkbox("Autoriser l’impression du PDF", value=False)
 
-# Génération du SCORM
+# Générer SCORM
 if st.button("📁 Générer le SCORM"):
     if not uploaded_file:
         st.error("Veuillez téléverser un fichier PDF.")
-    elif seconds_required is None or seconds_required > 86400:
-        st.error("Le timer est invalide.")
+    elif validation_criteria != "Lecture de toutes les pages" and (seconds_required is None or seconds_required > 86400):
+        st.error("⛔ Temps invalide.")
     else:
         with st.spinner("📦 Création du package SCORM..."):
             temp_dir = tempfile.mkdtemp()
             pdf_filename = uploaded_file.name
             pdf_path = os.path.join(temp_dir, pdf_filename)
 
-            # Sauvegarde du PDF
             with open(pdf_path, "wb") as f:
                 f.write(uploaded_file.read())
 
-            # Préparation HTML
+            # Génération HTML
             html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <title>{scorm_title}</title>
   <style>
-    body {{ font-family: sans-serif; background: #f8f9fa; padding: 20px; }}
+    body {{ font-family: sans-serif; padding: 20px; background: #f8f9fa; }}
     h1 {{ color: #333; }}
     #timer {{ font-size: 20px; font-weight: bold; margin-bottom: 15px; color: darkblue; }}
     embed {{ width: 100%; height: 600px; border: 1px solid #ccc; }}
@@ -82,13 +81,14 @@ if st.button("📁 Générer le SCORM"):
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <div id="timer">Temps restant : {time_str}</div>
+  {"<div id='timer'>Temps restant : " + time_str + "</div>" if validation_criteria != "Lecture de toutes les pages" else ""}
   <embed src="{pdf_filename}" type="application/pdf" 
          {'' if make_downloadable else 'oncontextmenu="return false"'}
          {'' if make_printable else 'style="pointer-events: none;"'}>
   <p><strong>Critère de validation sélectionné :</strong> {validation_criteria}</p>
 
-  <script>
+  {"<script>" if validation_criteria != "Lecture de toutes les pages" else ""}
+  {f"""
     let remaining = {seconds_required};
     const timerDiv = document.getElementById("timer");
 
@@ -110,7 +110,8 @@ if st.button("📁 Générer le SCORM"):
 
     updateTimer();
     const timer = setInterval(updateTimer, 1000);
-  </script>
+  """ if validation_criteria != "Lecture de toutes les pages" else ""}
+  {"</script>" if validation_criteria != "Lecture de toutes les pages" else ""}
 </body>
 </html>"""
 
@@ -118,7 +119,7 @@ if st.button("📁 Générer le SCORM"):
             with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
                 f.write(html_content)
 
-            # Manifeste SCORM
+            # Manifest
             with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
                 f.write(f"""<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="MANIFEST-{scorm_filename}" version="1.0"
@@ -145,7 +146,7 @@ if st.button("📁 Générer le SCORM"):
   </resources>
 </manifest>""")
 
-            # Zip
+            # Zip package
             zip_path = os.path.join(temp_dir, f"{scorm_filename}.zip")
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for folder, _, files in os.walk(temp_dir):
@@ -156,7 +157,6 @@ if st.button("📁 Générer le SCORM"):
                         arcname = os.path.relpath(full_path, temp_dir)
                         zipf.write(full_path, arcname)
 
-            # Téléchargement
             with open(zip_path, "rb") as f:
                 st.success("✅ SCORM généré avec succès.")
                 st.download_button(
