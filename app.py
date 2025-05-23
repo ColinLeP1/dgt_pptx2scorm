@@ -3,6 +3,8 @@ import zipfile
 import tempfile
 import shutil
 import os
+
+os.system("pip install PyPDF2")
 from datetime import timedelta
 from pathlib import Path
 from PyPDF2 import PdfReader
