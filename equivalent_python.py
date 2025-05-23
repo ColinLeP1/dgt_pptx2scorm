@@ -21,11 +21,10 @@ scorm_12 = st.checkbox("SCORM 1.2", key="scorm12")
 scorm_2004 = st.checkbox("SCORM 2004", key="scorm2004")
 
 # Gestion du choix unique de version SCORM (affichage dynamique)
-if scorm_12:
+if scorm_12 and scorm_2004:
     scorm_2004 = False
-if scorm_2004:
-    # ne désactive pas scorm_12 pour permettre modification (voir discussion)
-    pass
+if scorm_2004 and scorm_12:
+    scorm_12 = False
 
 # Critère validation
 validation_criteria = st.selectbox(
