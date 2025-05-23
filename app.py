@@ -14,8 +14,13 @@ st.title("Convertisseur PDF vers SCORM")
 # 1. Upload du PDF
 pdf_file = st.file_uploader("Uploader un fichier PDF", type="pdf")
 
-# 2. Nom du module SCORM
-module_title = st.text_input("Titre du module SCORM", value="Module SCORM")
+# Extraire nom par défaut du module SCORM depuis le fichier PDF uploadé (sans extension)
+default_module_title = ""
+if pdf_file is not None:
+    default_module_title = os.path.splitext(pdf_file.name)[0]
+
+# 2. Nom du module SCORM, valeur par défaut venant du nom de fichier PDF
+module_title = st.text_input("Titre du module SCORM", value=default_module_title or "Module SCORM")
 
 # 3. Durée minimum à passer sur le document
 min_duration_str = st.text_input("Durée minimale (hh:mm:ss)", value="00:05:00")
