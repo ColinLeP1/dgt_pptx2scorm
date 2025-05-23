@@ -109,7 +109,7 @@ document.addEventListener("DOMContentLoaded", function() {{
                 f.write(viewer_js_content)
 
             # HTML avec lecteur PDF + timer et intégration viewer.js
-           if validation_criteria == "lecture":
+    if validation_criteria == "lecture":
     # Validation par lecture complète des pages uniquement
     html_content = f"""<!DOCTYPE html>
 <html lang="fr">
