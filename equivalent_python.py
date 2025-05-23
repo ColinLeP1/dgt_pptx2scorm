@@ -12,7 +12,9 @@ uploaded_file = st.file_uploader("Téléversez un fichier PDF", type="pdf")
 
 default_title = uploaded_file.name.replace(".pdf", "") if uploaded_file else "Module_SCORM"
 scorm_title = st.text_input("Titre du module SCORM", value=default_title)
-scorm_filename = st.text_input("Nom du fichier SCORM (zip)", value=re.sub(r"[^\w\-]", "_", scorm_title))
+
+# Le nom de fichier est dérivé du titre en nettoyant les caractères non alphanumériques (un seul champ)
+scorm_filename = re.sub(r"[^\w\-]", "_", scorm_title)
 
 validation_criteria = st.selectbox(
     "Critère(s) de validation",
@@ -40,11 +42,9 @@ elif seconds_required and seconds_required > 86400:
 scorm_12 = st.checkbox("SCORM 1.2", value=True)
 scorm_2004 = st.checkbox("SCORM 2004", value=False)
 
-if scorm_12 and scorm_2004:
-    scorm_2004 = False
-
+# Permet de choisir indépendamment, sauf les deux décochés interdits
 if not scorm_12 and not scorm_2004:
-    st.info("ℹ️ Veuillez choisir une version de SCORM.")
+    st.info("ℹ️ Veuillez choisir au moins une version SCORM.")
 
 allow_print = st.checkbox("Autoriser l'impression du PDF", value=False)
 allow_download = st.checkbox("Autoriser le téléchargement du PDF", value=False)
@@ -57,7 +57,6 @@ if st.button("📁 Générer le SCORM"):
     elif not (scorm_12 or scorm_2004):
         st.error("Veuillez choisir une version SCORM.")
     else:
-        scorm_version = "1.2" if scorm_12 else "2004"
         with st.spinner("📦 Création du package SCORM..."):
             temp_dir = tempfile.mkdtemp()
             pdf_filename = uploaded_file.name
@@ -66,17 +65,14 @@ if st.button("📁 Générer le SCORM"):
             with open(pdf_path, "wb") as f:
                 f.write(uploaded_file.read())
 
+            # Création de viewer.js avec contrôle impression / téléchargement
             viewer_js_content = """
-// viewer.js : contrôle barre d'outils PDF
 document.addEventListener('DOMContentLoaded', function() {
   const embed = document.querySelector('embed');
-
-  // Bloquer clic droit uniquement pour éviter menu contextuel PDF
   embed.addEventListener('contextmenu', function(e) {
     e.preventDefault();
   });
 
-  // Fonction pour bloquer impression (désactive uniquement impression)
   function blockPrint() {
     window.onbeforeprint = function() {
       alert('L\'impression est désactivée pour ce document.');
@@ -84,14 +80,12 @@ document.addEventListener('DOMContentLoaded', function() {
     };
   }
 
-  // Fonction pour bloquer téléchargement (raccourcis clavier Ctrl+S / Cmd+S)
   function blockDownload() {
     document.addEventListener('keydown', function(e) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         alert('Le téléchargement est désactivé.');
       }
-      // Empêche aussi Ctrl+P (impression) si impression désactivée
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         alert('L\'impression est désactivée.');
@@ -99,7 +93,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 """
-
             if not allow_print:
                 viewer_js_content += "\n  blockPrint();\n"
             if not allow_download:
@@ -110,6 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
             with open(os.path.join(temp_dir, "viewer.js"), "w", encoding="utf-8") as f:
                 f.write(viewer_js_content)
 
+            # Texte du critère de validation affiché au-dessus du PDF
             criteria_text = ""
             if validation_criteria == "Lecture de toutes les pages":
                 criteria_text = "Critère de validation : Lecture de toutes les pages"
@@ -138,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
         String(s).padStart(2, '0');
       remaining--;
     }} else {{
-      timerDiv.textContent = "✅ Temps écoulé - SCORM {scorm_version}";
+      timerDiv.textContent = "✅ Temps écoulé - SCORM";
       clearInterval(timer);
     }}
   }}
@@ -151,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
             html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>{scorm_title}</title>
   <style>
     body {{ font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }}
@@ -165,7 +159,6 @@ document.addEventListener('DOMContentLoaded', function() {
   <div id="criteria">{criteria_text}</div>
   {timer_div}
   <embed src="{pdf_filename}" type="application/pdf" id="pdf_embed" />
-  
   <script src="viewer.js"></script>
   {timer_js}
 </body>
@@ -174,6 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
             with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
                 f.write(html_content)
 
+            # Manifest SCORM simple
             with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
                 f.write(f"""<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="MANIFEST-{scorm_filename}" version="1.0"
