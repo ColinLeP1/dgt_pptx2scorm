@@ -22,9 +22,10 @@ scorm_2004 = st.checkbox("SCORM 2004", key="scorm2004")
 
 # Gestion du choix unique de version SCORM (affichage dynamique)
 if scorm_12 and scorm_2004:
-    scorm_2004 = False
-if scorm_2004 and scorm_12:
-    scorm_12 = False
+    st.error("❌ Veuillez sélectionner une seule version SCORM.")
+    disable_generate = True
+else : 
+    disable_generate = False
 
 # Critère validation
 validation_criteria = st.selectbox(
@@ -67,7 +68,7 @@ criteria_text = {
 }
 st.markdown(f"**{criteria_text[validation_criteria]}**")
 
-if st.button("📁 Générer le SCORM"):
+if st.button("📁 Générer le SCORM", disabled=disable_generate):
     if not uploaded_file:
         st.error("Veuillez téléverser un fichier PDF.")
     elif show_timer and (seconds_required is None or seconds_required > 86400):
