@@ -2,20 +2,23 @@ import streamlit as st
 import re
 import os
 import base64
+import tempfile
+import shutil
+import zipfile
 
-st.set_page_config(page_title="Visionneuse PDF avec Timer SCORM", layout="centered")
-st.title("📄 Visionneuse PDF avec Timer (SCORM Ready)")
+st.set_page_config(page_title="Générateur SCORM PDF avec Timer", layout="centered")
+st.title("📦 Générateur de SCORM à partir d’un PDF + Timer")
 
-# 1. Uploader le PDF
-uploaded_file = st.file_uploader("Choisissez un fichier PDF", type="pdf")
+# 1. Upload PDF
+uploaded_file = st.file_uploader("Téléversez votre fichier PDF", type="pdf")
 
-# 2. Choisir la version SCORM
-scorm_version = st.selectbox("Version SCORM", ["1.2", "2004"])
+# 2. Choix du nom de fichier SCORM
+default_filename = uploaded_file.name.replace(".pdf", "") if uploaded_file else "module_scorm"
+scorm_filename = st.text_input("Nom du fichier SCORM (sans extension)", value=default_filename)
 
-# 3. Entrée du timer
-time_str = st.text_input("Temps de visualisation (HH:MM:SS)", "00:05:00")
+# 3. Timer
+time_str = st.text_input("Temps de visualisation requis (HH:MM:SS)", "00:05:00")
 
-# 4. Fonction pour valider et convertir
 def parse_hms(hms_str):
     match = re.match(r"^(\d{1,2}):(\d{2}):(\d{2})$", hms_str)
     if not match:
@@ -23,75 +26,128 @@ def parse_hms(hms_str):
     h, m, s = map(int, match.groups())
     return h * 3600 + m * 60 + s
 
-# 5. Conversion du temps
 seconds_required = parse_hms(time_str)
 if seconds_required is None:
     st.error("⛔ Format invalide. Utilisez HH:MM:SS.")
-    st.stop()
 elif seconds_required > 86400:
-    st.error("⛔ Le temps ne doit pas dépasser 24 heures (HH:MM:SS <= 24:00:00).")
-    st.stop()
+    st.error("⛔ Le temps ne doit pas dépasser 24h (HH:MM:SS <= 24:00:00).")
 
-# 6. Si fichier PDF fourni
-if uploaded_file:
-    st.success(f"📄 Fichier reçu : {uploaded_file.name}")
-    
-    # Convertir le fichier en base64 pour l'affichage
-    b64_pdf = base64.b64encode(uploaded_file.read()).decode("utf-8")
-    
-    # Affichage HTML + Timer JS
-    st.markdown("### 🕒 Aperçu avec Timer")
-    st.components.v1.html(f"""
-        <!DOCTYPE html>
-        <html lang="fr">
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                body {{
-                    font-family: Arial, sans-serif;
-                    padding: 10px;
-                    background-color: #f8f9fa;
-                }}
-                #timer {{
-                    font-size: 20px;
-                    margin-bottom: 12px;
-                    font-weight: bold;
-                    color: darkblue;
-                }}
-                iframe {{
-                    width: 100%;
-                    height: 600px;
-                    border: 1px solid #ccc;
-                }}
-            </style>
-        </head>
-        <body>
-            <div id="timer">Temps restant : {time_str}</div>
-            <iframe src="data:application/pdf;base64,{b64_pdf}" type="application/pdf"></iframe>
+# 4. Choix exclusif version SCORM
+st.subheader("Version SCORM")
+scorm_12 = st.checkbox("SCORM 1.2")
+scorm_2004 = st.checkbox("SCORM 2004")
 
-            <script>
-                let remaining = {seconds_required};
-                const timerDiv = document.getElementById("timer");
+if scorm_12 and scorm_2004:
+    st.error("❌ Veuillez sélectionner une seule version de SCORM.")
+elif not scorm_12 and not scorm_2004:
+    st.info("ℹ️ Veuillez choisir une version de SCORM.")
 
-                function updateTimer() {{
-                    if (remaining > 0) {{
-                        const h = Math.floor(remaining / 3600);
-                        const m = Math.floor((remaining % 3600) / 60);
-                        const s = remaining % 60;
-                        timerDiv.textContent = "Temps restant : " +
-                            String(h).padStart(2, '0') + ":" +
-                            String(m).padStart(2, '0') + ":" +
-                            String(s).padStart(2, '0');
-                        remaining--;
-                    }} else {{
-                        timerDiv.textContent = "✅ Temps écoulé (SCORM {scorm_version})";
-                        clearInterval(timer);
-                    }}
-                }}
+# 5. Lancer la génération
+if st.button("Générer le package SCORM"):
+    if not uploaded_file:
+        st.error("Veuillez d'abord téléverser un fichier PDF.")
+    elif seconds_required is None or seconds_required > 86400:
+        st.error("Le timer est invalide.")
+    elif scorm_12 == scorm_2004:  # Soit les deux cochés, soit aucun
+        st.error("Veuillez choisir une seule version SCORM.")
+    else:
+        scorm_version = "1.2" if scorm_12 else "2004"
+        with st.spinner("📦 Création du package SCORM..."):
 
-                updateTimer();
-                const timer = setInterval(updateTimer, 1000);
-            </script>
-        </body>
-        </html>
-    """, height=700)
+            temp_dir = tempfile.mkdtemp()
+            pdf_name = uploaded_file.name
+            pdf_path = os.path.join(temp_dir, pdf_name)
+
+            # Sauvegarde du PDF
+            with open(pdf_path, "wb") as f:
+                f.write(uploaded_file.read())
+
+            # Génération du fichier HTML
+            html_path = os.path.join(temp_dir, "index.html")
+            with open(html_path, "w", encoding="utf-8") as f:
+                f.write(f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>{scorm_filename}</title>
+</head>
+<body>
+  <h1>{scorm_filename}</h1>
+  <p>Le document sera disponible pendant {time_str}.</p>
+  <iframe src="{pdf_name}" width="100%" height="600px"></iframe>
+  <div id="timer">Temps restant : {time_str}</div>
+
+  <script>
+    let remaining = {seconds_required};
+    const timerDiv = document.getElementById("timer");
+    function updateTimer() {{
+      if (remaining > 0) {{
+        const h = Math.floor(remaining / 3600);
+        const m = Math.floor((remaining % 3600) / 60);
+        const s = remaining % 60;
+        timerDiv.textContent = "Temps restant : " +
+            String(h).padStart(2, '0') + ":" +
+            String(m).padStart(2, '0') + ":" +
+            String(s).padStart(2, '0');
+        remaining--;
+      }} else {{
+        timerDiv.textContent = "✅ Temps écoulé - SCORM {scorm_version}";
+        clearInterval(timer);
+      }}
+    }}
+    const timer = setInterval(updateTimer, 1000);
+    updateTimer();
+  </script>
+</body>
+</html>""")
+
+            # Manifest SCORM minimal
+            manifest_path = os.path.join(temp_dir, "imsmanifest.xml")
+            with open(manifest_path, "w", encoding="utf-8") as f:
+                f.write(f"""<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="MANIFEST-{scorm_filename}" version="1.0"
+    xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
+    xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_v1p3"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1
+    http://www.imsglobal.org/xsd/imscp_v1p1.xsd
+    http://www.adlnet.org/xsd/adlcp_v1p3
+    http://www.adlnet.org/xsd/adlcp_v1p3.xsd">
+
+  <organizations default="org1">
+    <organization identifier="org1">
+      <title>{scorm_filename}</title>
+      <item identifier="item1" identifierref="resource1">
+        <title>{scorm_filename}</title>
+      </item>
+    </organization>
+  </organizations>
+
+  <resources>
+    <resource identifier="resource1" type="webcontent" adlcp:scormType="sco" href="index.html">
+      <file href="index.html" />
+      <file href="{pdf_name}" />
+    </resource>
+  </resources>
+</manifest>""")
+
+            # Création du zip
+            zip_path = os.path.join(temp_dir, f"{scorm_filename}.zip")
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, _, files in os.walk(temp_dir):
+                    for file in files:
+                        if file.endswith(".zip"): continue
+                        full_path = os.path.join(root, file)
+                        arcname = os.path.relpath(full_path, temp_dir)
+                        zipf.write(full_path, arcname)
+
+            with open(zip_path, "rb") as f:
+                st.success("🎉 Package SCORM prêt !")
+                st.download_button(
+                    label="📥 Télécharger le package SCORM",
+                    data=f,
+                    file_name=f"{scorm_filename}.zip",
+                    mime="application/zip"
+                )
+
+            shutil.rmtree(temp_dir)
