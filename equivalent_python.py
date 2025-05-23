@@ -33,8 +33,8 @@ uploaded_file = st.file_uploader("Téléversez un fichier PDF", type="pdf")
 
 # Définir le titre et le nom du fichier par défaut
 default_title = uploaded_file.name.replace(".pdf", "") if uploaded_file else "Module_SCORM"
-scorm_title = st.text_input("Titre du module SCORM", value=default_title)
-scorm_filename = st.text_input("Nom du fichier SCORM (zip)", value=re.sub(r"[^\w\-]", "_", scorm_title))
+scorm_title = st.text_input("Titre du module SCORM (sera aussi utilisé pour le nom du fichier ZIP)", value=default_title)
+scorm_filename = re.sub(r"[^\w\-]", "_", scorm_title)  # Généré automatiquement, pas de champ utilisateur
 
 # Timer de visualisation
 time_str = st.text_input("Temps de visualisation requis (HH:MM:SS)", "00:05:00")
