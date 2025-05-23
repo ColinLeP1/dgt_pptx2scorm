@@ -10,10 +10,10 @@ st.title("📦 Générateur de SCORM à partir d’un PDF")
 
 uploaded_file = st.file_uploader("Téléversez un fichier PDF", type="pdf")
 
-# Définir le titre du module SCORM (utilisé aussi pour nom fichier zip)
+# Définir le titre et le nom du fichier par défaut
 default_title = uploaded_file.name.replace(".pdf", "") if uploaded_file else "Module_SCORM"
-scorm_title = st.text_input("Titre du module SCORM (sera aussi utilisé pour le nom du fichier ZIP)", value=default_title)
-scorm_filename = re.sub(r"[^\w\-]", "_", scorm_title)  # nom fichier généré automatiquement
+scorm_title = st.text_input("Titre du module SCORM", value=default_title)
+scorm_filename = st.text_input("Nom du fichier SCORM (zip)", value=re.sub(r"[^\w\-]", "_", scorm_title))
 
 # Timer de visualisation
 time_str = st.text_input("Temps de visualisation requis (HH:MM:SS)", "00:05:00")
@@ -31,20 +31,24 @@ if seconds_required is None:
 elif seconds_required > 86400:
     st.error("⛔ Le temps ne doit pas dépasser 24h.")
 
-# Choix version SCORM
+# Choix version SCORM (un seul choix possible)
 st.subheader("Version SCORM")
 scorm_12 = st.checkbox("SCORM 1.2")
-scorm_2004 = st.checkbox("SCORM 2004")
+scorm_2004 = False
+if scorm_12:
+    scorm_2004 = False
+else:
+    scorm_2004 = st.checkbox("SCORM 2004")
 
 if scorm_12 and scorm_2004:
     st.error("❌ Veuillez sélectionner une seule version SCORM.")
 elif not scorm_12 and not scorm_2004:
     st.info("ℹ️ Veuillez choisir une version de SCORM.")
 
-# Options PDF
+# Choix pour imprimer/télécharger le PDF
 st.subheader("Options PDF")
-pdf_printable = st.checkbox("Autoriser l'impression du PDF", value=True)
-pdf_downloadable = st.checkbox("Autoriser le téléchargement du PDF", value=True)
+pdf_printable = st.checkbox("Autoriser l'impression du PDF", value=False)
+pdf_downloadable = st.checkbox("Autoriser le téléchargement du PDF", value=False)
 
 if st.button("📁 Générer le SCORM"):
     if not uploaded_file:
@@ -65,13 +69,16 @@ if st.button("📁 Générer le SCORM"):
             with open(pdf_path, "wb") as f:
                 f.write(uploaded_file.read())
 
-            # Construire boutons HTML selon options
+            # Construire les boutons HTML selon options
             print_button_html = ''
             download_link_html = ''
 
+            # PDF affiché dans iframe avec toolbar cachée (toolbar=0 masque barre outils PDF navigateur)
+            pdf_embed_html = f'<iframe src="{pdf_filename}#toolbar=0" style="width:100%; height:600px; border:1px solid #ccc;"></iframe>'
+
             if pdf_printable:
                 print_button_html = """
-                <button onclick="window.print()" style="margin-bottom: 15px;">🖨️ Imprimer le PDF</button>
+                <button onclick="printPdf()" style="margin-bottom: 15px;">🖨️ Imprimer le PDF</button>
                 """
 
             if pdf_downloadable:
@@ -81,7 +88,6 @@ if st.button("📁 Générer le SCORM"):
                 </div>
                 """
 
-            # HTML avec lecteur PDF + timer + options impression/téléchargement
             html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -91,11 +97,18 @@ if st.button("📁 Générer le SCORM"):
     body {{ font-family: sans-serif; background: #f8f9fa; padding: 20px; }}
     h1 {{ color: #333; }}
     #timer {{ font-size: 20px; font-weight: bold; margin-bottom: 15px; color: darkblue; }}
-    embed {{ width: 100%; height: 600px; border: 1px solid #ccc; }}
     button {{
       font-size: 16px;
       padding: 8px 12px;
       cursor: pointer;
+    }}
+    a {{
+      font-size: 16px;
+      text-decoration: none;
+      color: #007bff;
+    }}
+    a:hover {{
+      text-decoration: underline;
     }}
   </style>
 </head>
@@ -106,9 +119,15 @@ if st.button("📁 Générer le SCORM"):
   {print_button_html}
   {download_link_html}
 
-  <embed src="{pdf_filename}" type="application/pdf">
+  {pdf_embed_html}
 
   <script>
+    function printPdf() {{
+      var iframe = document.querySelector('iframe');
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    }}
+
     let remaining = {seconds_required};
     const timerDiv = document.getElementById("timer");
 
