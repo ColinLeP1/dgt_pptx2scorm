@@ -31,34 +31,42 @@ if seconds_required is None:
 elif seconds_required > 86400:
     st.error("⛔ Le temps ne doit pas dépasser 24h.")
 
-# Choix version SCORM (un seul choix possible)
+# --- Gestion des cases SCORM avec désélection mutuelle ---
 st.subheader("Version SCORM")
-scorm_12 = st.checkbox("SCORM 1.2")
-scorm_2004 = False
-if scorm_12:
-    scorm_2004 = False
-else:
-    scorm_2004 = st.checkbox("SCORM 2004")
 
-if scorm_12 and scorm_2004:
-    st.error("❌ Veuillez sélectionner une seule version SCORM.")
-elif not scorm_12 and not scorm_2004:
+if "scorm_12" not in st.session_state:
+    st.session_state.scorm_12 = False
+if "scorm_2004" not in st.session_state:
+    st.session_state.scorm_2004 = False
+
+def on_change_scorm_12():
+    if st.session_state.scorm_12:
+        st.session_state.scorm_2004 = False
+
+def on_change_scorm_2004():
+    if st.session_state.scorm_2004:
+        st.session_state.scorm_12 = False
+
+scorm_12 = st.checkbox("SCORM 1.2", value=st.session_state.scorm_12, key="scorm_12", on_change=on_change_scorm_12)
+scorm_2004 = st.checkbox("SCORM 2004", value=st.session_state.scorm_2004, key="scorm_2004", on_change=on_change_scorm_2004)
+
+if not st.session_state.scorm_12 and not st.session_state.scorm_2004:
     st.info("ℹ️ Veuillez choisir une version de SCORM.")
 
-# Choix pour imprimer/télécharger le PDF
-st.subheader("Options PDF")
-pdf_printable = st.checkbox("Autoriser l'impression du PDF", value=False)
-pdf_downloadable = st.checkbox("Autoriser le téléchargement du PDF", value=False)
+# --- Options pour imprimabilité et téléchargeabilité du PDF ---
+st.subheader("Options du PDF")
+allow_print = st.checkbox("Autoriser l'impression du PDF", value=False)
+allow_download = st.checkbox("Autoriser le téléchargement du PDF", value=False)
 
 if st.button("📁 Générer le SCORM"):
     if not uploaded_file:
         st.error("Veuillez téléverser un fichier PDF.")
     elif seconds_required is None or seconds_required > 86400:
         st.error("Le timer est invalide.")
-    elif scorm_12 == scorm_2004:
+    elif st.session_state.scorm_12 == st.session_state.scorm_2004:
         st.error("Veuillez choisir une seule version SCORM.")
     else:
-        scorm_version = "1.2" if scorm_12 else "2004"
+        scorm_version = "1.2" if st.session_state.scorm_12 else "2004"
         with st.spinner("📦 Création du package SCORM..."):
 
             temp_dir = tempfile.mkdtemp()
@@ -69,23 +77,37 @@ if st.button("📁 Générer le SCORM"):
             with open(pdf_path, "wb") as f:
                 f.write(uploaded_file.read())
 
-            # Construire les boutons HTML selon options
-            print_button_html = ''
-            download_link_html = ''
+            # Définition des attributs pour embed PDF (interdire impression/download via PDF.js options)
+            # Note : embed natif a peu d’options, on va utiliser un iframe vers un viewer HTML custom.
 
-            # PDF affiché dans iframe avec toolbar cachée (toolbar=0 masque barre outils PDF navigateur)
-            pdf_embed_html = f'<iframe src="{pdf_filename}#toolbar=0" style="width:100%; height:600px; border:1px solid #ccc;"></iframe>'
+            # HTML avec lecteur PDF + timer + contrôle impression/téléchargement
+            # On va injecter un script JS simple pour bloquer clic droit, Ctrl+P, Ctrl+S si interdit.
+            # Le PDF est affiché via <embed>, mais on peut aussi utiliser <iframe>.
 
-            if pdf_printable:
-                print_button_html = """
-                <button onclick="printPdf()" style="margin-bottom: 15px;">🖨️ Imprimer le PDF</button>
+            print_block_script = ""
+            if not allow_print:
+                print_block_script += """
+                document.addEventListener('keydown', function(e) {
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+                        e.preventDefault();
+                        alert('Impression désactivée.');
+                    }
+                });
+                window.addEventListener('contextmenu', function(e) {
+                    e.preventDefault();
+                });
                 """
 
-            if pdf_downloadable:
-                download_link_html = f"""
-                <div style="margin-bottom: 15px;">
-                  <a href="{pdf_filename}" download>Télécharger le PDF</a>
-                </div>
+            download_block_script = ""
+            if not allow_download:
+                # Désactiver clic droit déjà fait, on ajoute message
+                download_block_script += """
+                document.addEventListener('keydown', function(e) {
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+                        e.preventDefault();
+                        alert('Téléchargement désactivé.');
+                    }
+                });
                 """
 
             html_content = f"""<!DOCTYPE html>
@@ -97,37 +119,14 @@ if st.button("📁 Générer le SCORM"):
     body {{ font-family: sans-serif; background: #f8f9fa; padding: 20px; }}
     h1 {{ color: #333; }}
     #timer {{ font-size: 20px; font-weight: bold; margin-bottom: 15px; color: darkblue; }}
-    button {{
-      font-size: 16px;
-      padding: 8px 12px;
-      cursor: pointer;
-    }}
-    a {{
-      font-size: 16px;
-      text-decoration: none;
-      color: #007bff;
-    }}
-    a:hover {{
-      text-decoration: underline;
-    }}
+    embed {{ width: 100%; height: 600px; border: 1px solid #ccc; }}
   </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
   <div id="timer">Temps restant : {time_str}</div>
-
-  {print_button_html}
-  {download_link_html}
-
-  {pdf_embed_html}
-
+  <embed src="{pdf_filename}" type="application/pdf" {"" if allow_download else "oncontextmenu='return false;'"}>
   <script>
-    function printPdf() {{
-      var iframe = document.querySelector('iframe');
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    }}
-
     let remaining = {seconds_required};
     const timerDiv = document.getElementById("timer");
 
@@ -149,6 +148,9 @@ if st.button("📁 Générer le SCORM"):
 
     updateTimer();
     const timer = setInterval(updateTimer, 1000);
+
+    {print_block_script}
+    {download_block_script}
   </script>
 </body>
 </html>"""
@@ -188,8 +190,7 @@ if st.button("📁 Générer le SCORM"):
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for folder, _, files in os.walk(temp_dir):
                     for file in files:
-                        if file.endswith(".zip"): 
-                            continue
+                        if file.endswith(".zip"): continue
                         full_path = os.path.join(folder, file)
                         arcname = os.path.relpath(full_path, temp_dir)
                         zipf.write(full_path, arcname)
