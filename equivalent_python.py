@@ -228,4 +228,3 @@ document.addEventListener("DOMContentLoaded", function() {{
                 )
 
             shutil.rmtree(temp_dir)
-``
