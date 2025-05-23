@@ -4,6 +4,7 @@ import os
 import tempfile
 import shutil
 import zipfile
+import distutils.dir_util  # <-- AJOUT ici
 
 st.set_page_config(page_title="Générateur SCORM PDF", layout="centered")
 st.title("📦 Générateur de SCORM à partir d’un PDF")
@@ -70,6 +71,11 @@ criteria_text = {
     "Les deux": "Critères de validation : lecture de toutes les pages et temps écoulé"
 }
 st.markdown(f"**{criteria_text[validation_criteria]}**")
+
+# --- Définition chemins templates SCORM (ajouté ici pour que les variables soient accessibles) ---
+# Remplacer par le chemin réel vers tes dossiers templates SCORM sur ton disque
+scorm_template_dir_12 = "templates_scorm_12"    # <-- adapte le chemin
+scorm_template_dir_2004 = "templates_scorm_2004"  # <-- adapte le chemin
 
 if st.button("📁 Générer le SCORM", disabled=disable_generate):
     if not uploaded_file:
@@ -259,8 +265,8 @@ document.addEventListener("DOMContentLoaded", function() {{
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <div id="validation-status">Pages lues: 0 / 0</div>
   <div id="timer">Temps restant : {time_str}</div>
+  <div id="validation-status">Pages lues: 0 / 0</div>
 
   <div id="pdf-container"></div>
   <button id="prev-page">Précédent</button>
@@ -272,22 +278,7 @@ document.addEventListener("DOMContentLoaded", function() {{
     let pagesRead = new Set();
     let totalPages = 0;
     let currentPage = 1;
-
     let remaining = {seconds_required};
-    const timerDiv = document.getElementById('timer');
-    const interval = setInterval(() => {{
-      if (remaining <= 0) {{
-        clearInterval(interval);
-        timerDiv.textContent = "✅ Temps écoulé.";
-        // Appel API SCORM si besoin
-      }} else {{
-        remaining--;
-        let h = Math.floor(remaining / 3600);
-        let m = Math.floor((remaining % 3600) / 60);
-        let s = remaining % 60;
-        timerDiv.textContent = `Temps restant : ${{h.toString().padStart(2,'0')}}:${{m.toString().padStart(2,'0')}}:${{s.toString().padStart(2,'0')}}`;
-      }}
-    }}, 1000);
 
     const url = '{pdf_filename}';
 
@@ -325,13 +316,28 @@ document.addEventListener("DOMContentLoaded", function() {{
 
     function updateCompletion() {{
       const statusDiv = document.getElementById('validation-status');
-      if (pagesRead.size === totalPages && remaining <= 0) {{
-        statusDiv.textContent = "✅ Module validé (pages lues et temps écoulé).";
-        // API SCORM
+      if (pagesRead.size === totalPages) {{
+        statusDiv.textContent = "✅ Toutes les pages ont été lues.";
+        // Appel possible à l'API SCORM pour notifier la complétion partielle
       }} else {{
         statusDiv.textContent = "Pages lues: " + pagesRead.size + " / " + totalPages;
       }}
     }}
+
+    const timerDiv = document.getElementById('timer');
+    const interval = setInterval(() => {{
+      if (remaining <= 0) {{
+        clearInterval(interval);
+        timerDiv.textContent = "✅ Temps écoulé. Module validé.";
+        // Appel à l'API SCORM pour notifier la complétion complète
+      }} else {{
+        remaining--;
+        let h = Math.floor(remaining / 3600);
+        let m = Math.floor((remaining % 3600) / 60);
+        let s = remaining % 60;
+        timerDiv.textContent = `Temps restant : ${{h.toString().padStart(2,'0')}}:${{m.toString().padStart(2,'0')}}:${{s.toString().padStart(2,'0')}}`;
+      }}
+    }}, 1000);
 
     document.getElementById('next-page').onclick = function() {{
       if (currentPage < totalPages) {{
@@ -354,13 +360,57 @@ document.addEventListener("DOMContentLoaded", function() {{
             with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
                 f.write(html_content)
 
-            # Création du ZIP final
+            # --- DÉBUT MODIFICATION PRINCIPALE : copier template + créer manifest + zipper ---
+
+            # Copier le template SCORM selon version choisie dans le temp_dir
+            template_dir = scorm_template_dir_12 if scorm_12 else scorm_template_dir_2004
+            distutils.dir_util.copy_tree(template_dir, temp_dir)
+
+            # Génération basique du manifest imsmanifest.xml (exemple simple)
+            manifest_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="com.example.{scorm_filename}" version="1"
+    xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+    xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsproject.org/xsd/imscp_rootv1p1p2
+    imscp_rootv1p1p2.xsd
+    http://www.adlnet.org/xsd/adlcp_rootv1p2
+    adlcp_rootv1p2.xsd">
+
+  <organizations default="ORG-1">
+    <organization identifier="ORG-1" structure="hierarchical">
+      <title>{scorm_title}</title>
+      <item identifier="ITEM-1" identifierref="RES-1">
+        <title>{scorm_title}</title>
+      </item>
+    </organization>
+  </organizations>
+
+  <resources>
+    <resource identifier="RES-1" type="webcontent" adlcp:scormType="sco" href="index.html">
+      <file href="index.html"/>
+      <file href="{pdf_filename}"/>
+      <file href="viewer.js"/>
+    </resource>
+  </resources>
+</manifest>
+"""
+
+            manifest_path = os.path.join(temp_dir, "imsmanifest.xml")
+            with open(manifest_path, "w", encoding="utf-8") as mf:
+                mf.write(manifest_content)
+
+            # Création du ZIP final avec la structure complète
             zip_path = os.path.join(temp_dir, f"{scorm_filename}.zip")
-            with zipfile.ZipFile(zip_path, "w") as zipf:
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
                 for root, dirs, files in os.walk(temp_dir):
                     for file in files:
                         if file != f"{scorm_filename}.zip":
-                            zipf.write(os.path.join(root, file), arcname=file)
+                            abs_path = os.path.join(root, file)
+                            arcname = os.path.relpath(abs_path, temp_dir)
+                            zipf.write(abs_path, arcname)
+
+            # --- FIN MODIFICATION PRINCIPALE ---
 
             with open(zip_path, "rb") as fzip:
                 st.download_button(
