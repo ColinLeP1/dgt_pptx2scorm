@@ -30,6 +30,8 @@ completion_criteria = st.multiselect("Critères de complétude", ["temps", "page
 if st.button("Générer SCORM"):
     if pdf_file is None:
         st.error("Veuillez uploader un fichier PDF.")
+    elif not completion_criteria:
+        st.error("Veuillez sélectionner au moins un critère de complétude (temps et/ou pages).")
     else:
         with tempfile.TemporaryDirectory() as tmpdir:
             pdf_path = os.path.join(tmpdir, "document.pdf")
