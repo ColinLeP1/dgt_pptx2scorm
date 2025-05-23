@@ -11,11 +11,11 @@ st.title("📦 Générateur de SCORM à partir d’un PDF")
 # 1. Upload PDF
 uploaded_file = st.file_uploader("Téléversez votre fichier PDF", type="pdf")
 
-# 2. Nom SCORM
+# 2. Choisir un nom pour le fichier SCORM
 default_filename = uploaded_file.name.replace(".pdf", "") if uploaded_file else "module_scorm"
 scorm_filename = st.text_input("Nom du fichier SCORM (sans extension)", value=default_filename)
 
-# 3. Timer
+# 3. Entrée du timer
 time_str = st.text_input("Temps de visualisation requis (HH:MM:SS)", "00:05:00")
 
 def parse_hms(hms_str):
