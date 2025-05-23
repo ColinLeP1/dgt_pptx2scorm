@@ -10,29 +10,18 @@ st.title("📦 Générateur de SCORM à partir d’un PDF")
 
 uploaded_file = st.file_uploader("Téléversez un fichier PDF", type="pdf")
 
-# Définir le titre et le nom du fichier par défaut
 default_title = uploaded_file.name.replace(".pdf", "") if uploaded_file else "Module_SCORM"
 scorm_title = st.text_input("Titre du module SCORM", value=default_title)
+
+# Le nom de fichier est dérivé du titre en nettoyant les caractères non alphanumériques (un seul champ)
 scorm_filename = re.sub(r"[^\w\-]", "_", scorm_title)
 
-# Choix version SCORM (une seule possible)
-st.subheader("Version SCORM")
-scorm_12 = st.checkbox("SCORM 1.2")
-scorm_2004 = st.checkbox("SCORM 2004")
-
-if scorm_12 and scorm_2004:
-    st.error("❌ Veuillez sélectionner une seule version SCORM.")
-elif not scorm_12 and not scorm_2004:
-    st.info("ℹ️ Veuillez choisir une version de SCORM.")
-
-# Critères de validation
 validation_criteria = st.selectbox(
-    "Critères de validation",
-    ["Lecture de toutes les pages", "Temps écoulé", "Lecture + Temps écoulé"]
+    "Critère(s) de validation",
+    options=["Lecture de toutes les pages", "Temps écoulé", "Lecture + Temps"]
 )
 
-# Timer de visualisation (affiché uniquement si le temps est un critère)
-if validation_criteria in ["Temps écoulé", "Lecture + Temps écoulé"]:
+if validation_criteria in ["Temps écoulé", "Lecture + Temps"]:
     time_str = st.text_input("Temps de visualisation requis (HH:MM:SS)", "00:05:00")
 else:
     time_str = None
@@ -50,135 +39,135 @@ if time_str and seconds_required is None:
 elif seconds_required and seconds_required > 86400:
     st.error("⛔ Le temps ne doit pas dépasser 24h.")
 
-# Autorisations impression / téléchargement
-allow_print = st.checkbox("Autoriser l'impression", value=False)
-allow_download = st.checkbox("Autoriser le téléchargement", value=False)
+scorm_12 = st.checkbox("SCORM 1.2", value=True)
+scorm_2004 = st.checkbox("SCORM 2004", value=False)
 
-# Afficher le critère de validation au-dessus du PDF
-st.markdown(f"**Critère de validation choisi :** {validation_criteria}")
+# Permet de choisir indépendamment, sauf les deux décochés interdits
+if not scorm_12 and not scorm_2004:
+    st.info("ℹ️ Veuillez choisir au moins une version SCORM.")
+
+allow_print = st.checkbox("Autoriser l'impression du PDF", value=False)
+allow_download = st.checkbox("Autoriser le téléchargement du PDF", value=False)
 
 if st.button("📁 Générer le SCORM"):
-    # Validation avant génération
     if not uploaded_file:
         st.error("Veuillez téléverser un fichier PDF.")
-    elif validation_criteria in ["Temps écoulé", "Lecture + Temps écoulé"] and (seconds_required is None or seconds_required > 86400):
+    elif (time_str and (seconds_required is None or seconds_required > 86400)):
         st.error("Le timer est invalide.")
-    elif scorm_12 == scorm_2004:
-        st.error("Veuillez choisir une seule version SCORM.")
+    elif not (scorm_12 or scorm_2004):
+        st.error("Veuillez choisir une version SCORM.")
     else:
-        scorm_version = "1.2" if scorm_12 else "2004"
         with st.spinner("📦 Création du package SCORM..."):
             temp_dir = tempfile.mkdtemp()
             pdf_filename = uploaded_file.name
             pdf_path = os.path.join(temp_dir, pdf_filename)
 
-            # Sauvegarder le fichier PDF
             with open(pdf_path, "wb") as f:
                 f.write(uploaded_file.read())
 
             # Création de viewer.js avec contrôle impression / téléchargement
-            viewer_js_lines = [
-                "document.addEventListener('DOMContentLoaded', function() {",
-                "  const embed = document.querySelector('embed');",
-                "  embed.addEventListener('contextmenu', function(e) {",
-                "    e.preventDefault();",
-                "  });",
-                "",
-                "  function blockPrint() {",
-                "    window.onbeforeprint = function() {",
-                "      alert('L\\'impression est désactivée pour ce document.');",
-                "      return false;",
-                "    };",
-                "  }",
-                "",
-                "  function blockDownload() {",
-                "    document.addEventListener('keydown', function(e) {",
-                "      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {",
-                "        e.preventDefault();",
-                "        alert('Le téléchargement est désactivé.');",
-                "      }",
-                "      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {",
-                "        e.preventDefault();",
-                "        alert('L\\'impression est désactivée.');",
-                "      }",
-                "    });",
-                "  }",
-                ""
-            ]
+            viewer_js_content = """
+document.addEventListener('DOMContentLoaded', function() {
+  const embed = document.querySelector('embed');
+  embed.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+  });
 
-            line_print = "  blockPrint();"
-            line_download = "  blockDownload();"
+  function blockPrint() {
+    window.onbeforeprint = function() {
+      alert('L\'impression est désactivée pour ce document.');
+      return false;
+    };
+  }
 
-            # Commente la ligne pour désactiver le blocage si autorisé
-            if allow_print:
-                line_print = "// " + line_print
-            if allow_download:
-                line_download = "// " + line_download
+  function blockDownload() {
+    document.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        alert('Le téléchargement est désactivé.');
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        alert('L\'impression est désactivée.');
+      }
+    });
+  }
+"""
+            if not allow_print:
+                viewer_js_content += "\n  blockPrint();\n"
+            if not allow_download:
+                viewer_js_content += "\n  blockDownload();\n"
 
-            viewer_js_lines.append(line_print)
-            viewer_js_lines.append(line_download)
-            viewer_js_lines.append("});")
-
-            viewer_js_content = "\n".join(viewer_js_lines)
+            viewer_js_content += "});"
 
             with open(os.path.join(temp_dir, "viewer.js"), "w", encoding="utf-8") as f:
                 f.write(viewer_js_content)
 
-            # Création de l'index.html avec inclusion de viewer.js
-            # Timer affiché uniquement si requis par validation
-            timer_html = ""
-            if validation_criteria in ["Temps écoulé", "Lecture + Temps écoulé"]:
-                timer_html = f'<div id="timer">Temps restant : {time_str}</div>'
+            # Texte du critère de validation affiché au-dessus du PDF
+            criteria_text = ""
+            if validation_criteria == "Lecture de toutes les pages":
+                criteria_text = "Critère de validation : Lecture de toutes les pages"
+            elif validation_criteria == "Temps écoulé":
+                criteria_text = f"Critère de validation : Temps écoulé ({time_str})"
+            elif validation_criteria == "Lecture + Temps":
+                criteria_text = f"Critère de validation : Lecture de toutes les pages + Temps écoulé ({time_str})"
+
+            timer_js = ""
+            timer_div = ""
+            if validation_criteria in ["Temps écoulé", "Lecture + Temps"]:
+                timer_div = f'<div id="timer" style="font-weight:bold; margin-bottom:15px; color: darkblue;">Temps restant : {time_str}</div>'
+                timer_js = f"""
+<script>
+  let remaining = {seconds_required};
+  const timerDiv = document.getElementById("timer");
+
+  function updateTimer() {{
+    if (remaining > 0) {{
+      const h = Math.floor(remaining / 3600);
+      const m = Math.floor((remaining % 3600) / 60);
+      const s = remaining % 60;
+      timerDiv.textContent = "Temps restant : " +
+        String(h).padStart(2, '0') + ":" +
+        String(m).padStart(2, '0') + ":" +
+        String(s).padStart(2, '0');
+      remaining--;
+    }} else {{
+      timerDiv.textContent = "✅ Temps écoulé - SCORM";
+      clearInterval(timer);
+    }}
+  }}
+
+  updateTimer();
+  const timer = setInterval(updateTimer, 1000);
+</script>
+"""
 
             html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>{scorm_title}</title>
   <style>
-    body {{ font-family: sans-serif; background: #f8f9fa; padding: 20px; }}
-    h1 {{ color: #333; }}
-    #timer {{ font-size: 20px; font-weight: bold; margin-bottom: 15px; color: darkblue; }}
-    embed {{ width: 100%; height: 600px; border: 1px solid #ccc; }}
+    body {{ font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }}
+    h1 {{ color: #222; margin-bottom: 5px; }}
+    #criteria {{ font-size: 18px; font-weight: bold; margin-bottom: 10px; color: darkgreen; }}
+    embed {{ width: 100%; height: 700px; border: 1px solid #ccc; }}
   </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  {timer_html}
-  <embed src="{pdf_filename}" type="application/pdf">
+  <div id="criteria">{criteria_text}</div>
+  {timer_div}
+  <embed src="{pdf_filename}" type="application/pdf" id="pdf_embed" />
   <script src="viewer.js"></script>
-
-  <script>
-    {"let remaining = " + str(seconds_required) + ";" if seconds_required else ""}
-    const timerDiv = document.getElementById("timer");
-
-    function updateTimer() {{
-      if (remaining > 0) {{
-        const h = Math.floor(remaining / 3600);
-        const m = Math.floor((remaining % 3600) / 60);
-        const s = remaining % 60;
-        timerDiv.textContent = "Temps restant : " +
-          String(h).padStart(2, '0') + ":" +
-          String(m).padStart(2, '0') + ":" +
-          String(s).padStart(2, '0');
-        remaining--;
-      }} else {{
-        if(timerDiv) {{
-          timerDiv.textContent = "✅ Temps écoulé - SCORM {scorm_version}";
-        }}
-        clearInterval(timer);
-      }}
-    }}
-
-    {"if(remaining > 0) { updateTimer(); var timer = setInterval(updateTimer, 1000); }" if seconds_required else ""}
-  </script>
+  {timer_js}
 </body>
 </html>"""
 
             with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
                 f.write(html_content)
 
-            # Manifeste SCORM
+            # Manifest SCORM simple
             with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
                 f.write(f"""<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="MANIFEST-{scorm_filename}" version="1.0"
@@ -200,13 +189,12 @@ if st.button("📁 Générer le SCORM"):
   <resources>
     <resource identifier="res1" type="webcontent" adlcp:scormType="sco" href="index.html">
       <file href="index.html"/>
-      <file href="viewer.js"/>
       <file href="{pdf_filename}"/>
+      <file href="viewer.js"/>
     </resource>
   </resources>
 </manifest>""")
 
-            # Création du zip
             zip_path = os.path.join(temp_dir, f"{scorm_filename}.zip")
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for folder, _, files in os.walk(temp_dir):
@@ -214,3 +202,16 @@ if st.button("📁 Générer le SCORM"):
                         if file.endswith(".zip"):
                             continue
                         full_path = os.path.join(folder, file)
+                        arcname = os.path.relpath(full_path, temp_dir)
+                        zipf.write(full_path, arcname)
+
+            with open(zip_path, "rb") as f:
+                st.success("✅ SCORM généré avec succès.")
+                st.download_button(
+                    label="📥 Télécharger le SCORM",
+                    data=f,
+                    file_name=f"{scorm_filename}.zip",
+                    mime="application/zip"
+                )
+
+            shutil.rmtree(temp_dir)
