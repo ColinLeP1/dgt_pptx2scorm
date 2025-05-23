@@ -25,7 +25,7 @@ if scorm_12:
     scorm_2004 = False
 if scorm_2004:
     # ne désactive pas scorm_12 pour permettre modification (voir discussion)
-    scorm_12 = False
+    pass
 
 # Critère validation
 validation_criteria = st.selectbox(
