@@ -1,40 +1,19 @@
 import streamlit as st
 import re
 import os
-import shutil
 import tempfile
+import shutil
 import zipfile
-import time
 
 st.set_page_config(page_title="Générateur SCORM PDF", layout="centered")
 st.title("📦 Générateur de SCORM à partir d’un PDF")
 
-# Définitions des dossiers persistants
-BASE_UPLOAD_DIR = "./uploads"
-BASE_OUTPUT_DIR = "./output"
-SCORM_TEMPLATE_DIR = "./scorm_base"  # À adapter avec ton dossier template SCORM
-
-os.makedirs(BASE_UPLOAD_DIR, exist_ok=True)
-os.makedirs(BASE_OUTPUT_DIR, exist_ok=True)
-
-def recurse_copy(src, dst):
-    """Copie récursive d'un dossier src vers dst."""
-    if not os.path.exists(dst):
-        os.makedirs(dst)
-    for item in os.listdir(src):
-        s = os.path.join(src, item)
-        d = os.path.join(dst, item)
-        if os.path.isdir(s):
-            recurse_copy(s, d)
-        else:
-            shutil.copy2(s, d)
-
 uploaded_file = st.file_uploader("Téléversez un fichier PDF", type="pdf")
 
-# Définir le titre et le nom du fichier par défaut
+# Définir le titre du module SCORM (utilisé aussi pour nom fichier zip)
 default_title = uploaded_file.name.replace(".pdf", "") if uploaded_file else "Module_SCORM"
 scorm_title = st.text_input("Titre du module SCORM (sera aussi utilisé pour le nom du fichier ZIP)", value=default_title)
-scorm_filename = re.sub(r"[^\w\-]", "_", scorm_title)  # Généré automatiquement, pas de champ utilisateur
+scorm_filename = re.sub(r"[^\w\-]", "_", scorm_title)  # nom fichier généré automatiquement
 
 # Timer de visualisation
 time_str = st.text_input("Temps de visualisation requis (HH:MM:SS)", "00:05:00")
@@ -62,6 +41,11 @@ if scorm_12 and scorm_2004:
 elif not scorm_12 and not scorm_2004:
     st.info("ℹ️ Veuillez choisir une version de SCORM.")
 
+# Options PDF
+st.subheader("Options PDF")
+pdf_printable = st.checkbox("Autoriser l'impression du PDF", value=True)
+pdf_downloadable = st.checkbox("Autoriser le téléchargement du PDF", value=True)
+
 if st.button("📁 Générer le SCORM"):
     if not uploaded_file:
         st.error("Veuillez téléverser un fichier PDF.")
@@ -73,11 +57,7 @@ if st.button("📁 Générer le SCORM"):
         scorm_version = "1.2" if scorm_12 else "2004"
         with st.spinner("📦 Création du package SCORM..."):
 
-            # Création d'un dossier temporaire unique dans uploads
-            session_id = f"session_{int(time.time())}"
-            temp_dir = os.path.join(BASE_UPLOAD_DIR, session_id)
-            os.makedirs(temp_dir, exist_ok=True)
-
+            temp_dir = tempfile.mkdtemp()
             pdf_filename = uploaded_file.name
             pdf_path = os.path.join(temp_dir, pdf_filename)
 
@@ -85,11 +65,23 @@ if st.button("📁 Générer le SCORM"):
             with open(pdf_path, "wb") as f:
                 f.write(uploaded_file.read())
 
-            # Copier les fichiers SCORM de base si dossier template existe
-            if os.path.exists(SCORM_TEMPLATE_DIR):
-                recurse_copy(SCORM_TEMPLATE_DIR, temp_dir)
+            # Construire boutons HTML selon options
+            print_button_html = ''
+            download_link_html = ''
 
-            # Génération de la page HTML avec lecteur PDF + timer
+            if pdf_printable:
+                print_button_html = """
+                <button onclick="window.print()" style="margin-bottom: 15px;">🖨️ Imprimer le PDF</button>
+                """
+
+            if pdf_downloadable:
+                download_link_html = f"""
+                <div style="margin-bottom: 15px;">
+                  <a href="{pdf_filename}" download>Télécharger le PDF</a>
+                </div>
+                """
+
+            # HTML avec lecteur PDF + timer + options impression/téléchargement
             html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -100,11 +92,20 @@ if st.button("📁 Générer le SCORM"):
     h1 {{ color: #333; }}
     #timer {{ font-size: 20px; font-weight: bold; margin-bottom: 15px; color: darkblue; }}
     embed {{ width: 100%; height: 600px; border: 1px solid #ccc; }}
+    button {{
+      font-size: 16px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }}
   </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
   <div id="timer">Temps restant : {time_str}</div>
+
+  {print_button_html}
+  {download_link_html}
+
   <embed src="{pdf_filename}" type="application/pdf">
 
   <script>
@@ -136,8 +137,9 @@ if st.button("📁 Générer le SCORM"):
             with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
                 f.write(html_content)
 
-            # Manifeste SCORM (remplace ou crée imsmanifest.xml)
-            manifest_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+            # Manifeste SCORM
+            with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
+                f.write(f"""<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="MANIFEST-{scorm_filename}" version="1.0"
   xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
   xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_v1p3"
@@ -160,17 +162,14 @@ if st.button("📁 Générer le SCORM"):
       <file href="{pdf_filename}"/>
     </resource>
   </resources>
-</manifest>"""
+</manifest>""")
 
-            with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
-                f.write(manifest_content)
-
-            # Création du zip dans dossier output
-            zip_path = os.path.join(BASE_OUTPUT_DIR, f"{scorm_filename}_{session_id}.zip")
+            # Création du zip
+            zip_path = os.path.join(temp_dir, f"{scorm_filename}.zip")
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for folder, _, files in os.walk(temp_dir):
                     for file in files:
-                        if file.endswith(".zip"):  # Exclure zip déjà créé s’il existe
+                        if file.endswith(".zip"): 
                             continue
                         full_path = os.path.join(folder, file)
                         arcname = os.path.relpath(full_path, temp_dir)
@@ -182,9 +181,8 @@ if st.button("📁 Générer le SCORM"):
                 st.download_button(
                     label="📥 Télécharger le SCORM",
                     data=f,
-                    file_name=os.path.basename(zip_path),
+                    file_name=f"{scorm_filename}.zip",
                     mime="application/zip"
                 )
 
-            # Optionnel : Nettoyage du dossier temporaire upload après génération
             shutil.rmtree(temp_dir)
