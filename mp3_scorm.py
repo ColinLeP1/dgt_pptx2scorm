@@ -3,8 +3,9 @@ import os
 import zipfile
 import shutil
 
+# Fonction pour générer le fichier manifest selon la version SCORM
 def create_scorm_manifest(version, title, mp3_filename, subtitle_filename=None):
-    subtitle_file_entry = f'<file href="{subtitle_filename}"/>' if subtitle_filename else ''
+    subtitle_entry = f"\n      <file href=\"{subtitle_filename}\"/>" if subtitle_filename else ""
 
     if version == "1.2":
         return f'''<?xml version="1.0" encoding="UTF-8"?>
@@ -31,8 +32,7 @@ def create_scorm_manifest(version, title, mp3_filename, subtitle_filename=None):
   <resources>
     <resource identifier="RES1" type="webcontent" adlcp:scormtype="sco" href="index.html">
       <file href="index.html"/>
-      <file href="{mp3_filename}"/>
-      {subtitle_file_entry}
+      <file href="{mp3_filename}"/>{subtitle_entry}
     </resource>
   </resources>
 </manifest>'''
@@ -64,28 +64,22 @@ def create_scorm_manifest(version, title, mp3_filename, subtitle_filename=None):
   <resources>
     <resource identifier="RES1" type="webcontent" adlcp:scormType="sco" href="index.html">
       <file href="index.html"/>
-      <file href="{mp3_filename}"/>
-      {subtitle_file_entry}
+      <file href="{mp3_filename}"/>{subtitle_entry}
     </resource>
   </resources>
 </manifest>'''
 
-def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours Audio SCORM", subtitle_path=None):
+def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_title="Mon Cours Audio SCORM"):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     mp3_filename = os.path.basename(mp3_path)
     shutil.copy(mp3_path, os.path.join(output_dir, mp3_filename))
 
-    subtitle_filename = os.path.basename(subtitle_path) if subtitle_path else ""
+    subtitle_filename = None
     if subtitle_path:
+        subtitle_filename = os.path.basename(subtitle_path)
         shutil.copy(subtitle_path, os.path.join(output_dir, subtitle_filename))
-
-    manifest_xml = create_scorm_manifest(version, scorm_title, mp3_filename, subtitle_filename)
-    with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
-        f.write(manifest_xml)
-
-    track_tag = f"<track src='{subtitle_filename}' kind='subtitles' srclang='fr' label='Français'>" if subtitle_filename else ""
 
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
@@ -101,9 +95,8 @@ def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours A
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <audio id="audioPlayer" controls>
+  <audio id="audioPlayer" controls {f'track src="{subtitle_filename}" kind="subtitles" srclang="fr" label="Français">' if subtitle_filename else ''}>
     <source src="{mp3_filename}" type="audio/mpeg">
-    {track_tag}
     Votre navigateur ne supporte pas la lecture audio.
   </audio>
   <canvas id="canvas"></canvas>
@@ -118,7 +111,6 @@ def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours A
     let audioContext;
     let analyser;
     let source;
-    let audioInitialized = false;
 
     function setupAudio() {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -140,7 +132,7 @@ def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours A
       const barWidth = canvas.width / bufferLength;
       let x = 0;
 
-      for(let i = 0; i < bufferLength; i++) {
+      for (let i = 0; i < bufferLength; i++) {
         const barHeight = dataArray[i] / 255 * canvas.height;
         const red = Math.min(255, barHeight + 100);
         const green = Math.min(255, 250 * (i / bufferLength));
@@ -152,12 +144,11 @@ def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours A
     }
 
     audio.onplay = () => {
-      if (!audioInitialized) {
+      if (!audioContext) {
         setupAudio();
         draw();
-        audioInitialized = true;
       }
-      if (audioContext && audioContext.state === 'suspended') {
+      if (audioContext.state === 'suspended') {
         audioContext.resume();
       }
     };
@@ -168,28 +159,23 @@ def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours A
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html_content)
 
-# Streamlit interface
+    manifest_xml = create_scorm_manifest(version, scorm_title, mp3_filename, subtitle_filename)
+    with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
+        f.write(manifest_xml)
+
+# Interface Streamlit
 st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio et Sous-titres")
 
 uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
-
-add_subtitles = st.checkbox("Ajouter des sous-titres (SRT ou VTT)")
+add_subtitles = st.checkbox("Ajouter des sous-titres")
 subtitle_file = None
-subtitle_filename = ""
 if add_subtitles:
-    subtitle_file = st.file_uploader("Choisissez un fichier de sous-titres", type=["srt", "vtt"])
-    if subtitle_file:
-        subtitle_filename = subtitle_file.name
+    subtitle_file = st.file_uploader("Fichier de sous-titres (SRT ou VTT)", type=["srt", "vtt"])
 
 scorm_12 = st.checkbox("SCORM 1.2")
 scorm_2004 = st.checkbox("SCORM 2004")
 
-if uploaded_file:
-    default_title = uploaded_file.name.rsplit('.', 1)[0]
-else:
-    default_title = "Mon Cours Audio SCORM"
-
-scorm_title = st.text_input("Titre du package SCORM (nom du fichier ZIP) :", value=default_title)
+scorm_title = st.text_input("Titre du package SCORM (nom du fichier ZIP) :", value="Mon Cours Audio SCORM")
 
 if uploaded_file:
     temp_dir = "temp_scorm"
@@ -201,14 +187,11 @@ if uploaded_file:
     with open(mp3_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
+    subtitle_path = None
     if subtitle_file:
         subtitle_path = os.path.join(temp_dir, subtitle_file.name)
         with open(subtitle_path, "wb") as f:
             f.write(subtitle_file.getbuffer())
-    else:
-        subtitle_path = None
-
-    st.write(f"Fichier MP3 reçu : {uploaded_file.name}")
 
     if st.button("Générer le package SCORM"):
         if (scorm_12 and scorm_2004) or (not scorm_12 and not scorm_2004):
@@ -216,7 +199,7 @@ if uploaded_file:
         else:
             version = "1.2" if scorm_12 else "2004"
             output_dir = os.path.join(temp_dir, "scorm_package")
-            create_scorm_package(mp3_path, output_dir, version, scorm_title, subtitle_path)
+            create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_title)
 
             zip_path = os.path.join(temp_dir, f"{scorm_title}.zip")
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
