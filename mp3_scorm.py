@@ -85,7 +85,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
             shutil.copy(path, os.path.join(output_dir, filename))
 
     track_elements = "\n    ".join([
-        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}">' 
+        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}"/>' 
         for fn in subtitle_filenames
     ])
 
