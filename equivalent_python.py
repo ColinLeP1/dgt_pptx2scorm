@@ -25,7 +25,7 @@ if scorm_12 and scorm_2004:
     st.error("❌ Veuillez sélectionner une seule version SCORM.")
     disable_generate = True
 elif not scorm_12 and not scorm_2004:
-    st.badge("Veuillez sélectionner une version SCORM.")
+    st.warning("Veuillez sélectionner une version SCORM.")
     disable_generate = True
 else:
     disable_generate = False
@@ -71,11 +71,6 @@ criteria_text = {
 }
 st.markdown(f"**{criteria_text[validation_criteria]}**")
 
-# --- Définition chemins templates SCORM (ajouté ici pour que les variables soient accessibles) ---
-# Remplacer par le chemin réel vers tes dossiers templates SCORM sur ton disque
-scorm_template_dir_12 = "templates_scorm_12"    # <-- adapte le chemin
-scorm_template_dir_2004 = "templates_scorm_2004"  # <-- adapte le chemin
-
 if st.button("📁 Générer le SCORM", disabled=disable_generate):
     if not uploaded_file:
         st.error("Veuillez téléverser un fichier PDF.")
@@ -89,13 +84,9 @@ if st.button("📁 Générer le SCORM", disabled=disable_generate):
 
             temp_dir = tempfile.mkdtemp()
 
-            template_dir = scorm_template_dir_12 if scorm_12 else scorm_template_dir_2004
-            shutil.copytree(template_dir, temp_dir, dirs_exist_ok=True)
-            
+            # Sauvegarder le fichier PDF dans temp_dir
             pdf_filename = uploaded_file.name
             pdf_path = os.path.join(temp_dir, pdf_filename)
-
-            # Sauvegarder le fichier PDF
             with open(pdf_path, "wb") as f:
                 f.write(uploaded_file.read())
 
@@ -106,18 +97,17 @@ document.addEventListener("DOMContentLoaded", function() {{
     const printBtn = document.getElementById('print');
     const downloadBtn = document.getElementById('download');
 
-    // Si non imprimable, commenter la ligne 84 (simulé ici en désactivant le bouton)
+    // Si non imprimable, cacher le bouton
     {'printBtn.style.display = "none";' if not printable else ''}
 
-    // Si non téléchargeable, commenter la ligne 86 (simulé ici en désactivant le bouton)
+    // Si non téléchargeable, cacher le bouton
     {'downloadBtn.style.display = "none";' if not downloadable else ''}
 }});
 """
-
             with open(os.path.join(temp_dir, "viewer.js"), "w", encoding="utf-8") as f:
                 f.write(viewer_js_content)
 
-            # HTML avec lecteur PDF + timer et intégration viewer.js
+            # Génération du fichier index.html selon critère de validation
             if validation_criteria == "Lecture de toutes les pages":
                 # Validation par lecture complète des pages uniquement
                 html_content = f"""<!DOCTYPE html>
@@ -251,7 +241,7 @@ document.addEventListener("DOMContentLoaded", function() {{
 </html>
 """
             else:
-                # Les deux critères
+                # Les deux critères : lecture des pages + temps
                 html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -260,8 +250,8 @@ document.addEventListener("DOMContentLoaded", function() {{
   <style>
     body {{ font-family: sans-serif; background: #f8f9fa; padding: 20px; }}
     h1 {{ color: #333; }}
+    #timer {{ font-size: 20px; font-weight: bold; margin-bottom: 10px; color: darkblue; }}
     #validation-status {{ font-weight: bold; margin-bottom: 10px; color: green; }}
-    #timer {{ font-size: 20px; font-weight: bold; margin-bottom: 15px; color: darkblue; }}
     #pdf-container canvas {{ border: 1px solid #ccc; }}
     button {{ margin: 5px; }}
   </style>
@@ -281,7 +271,7 @@ document.addEventListener("DOMContentLoaded", function() {{
     let pagesRead = new Set();
     let totalPages = 0;
     let currentPage = 1;
-    let remaining = {seconds_required};
+    let timerRemaining = {seconds_required};
 
     const url = '{pdf_filename}';
 
@@ -319,28 +309,13 @@ document.addEventListener("DOMContentLoaded", function() {{
 
     function updateCompletion() {{
       const statusDiv = document.getElementById('validation-status');
-      if (pagesRead.size === totalPages) {{
-        statusDiv.textContent = "✅ Toutes les pages ont été lues.";
-        // Appel possible à l'API SCORM pour notifier la complétion partielle
+      if (pagesRead.size === totalPages && timerRemaining <= 0) {{
+        statusDiv.textContent = "✅ Toutes les pages ont été lues ET le temps est écoulé.";
+        // Appel API SCORM pour validation
       }} else {{
         statusDiv.textContent = "Pages lues: " + pagesRead.size + " / " + totalPages;
       }}
     }}
-
-    const timerDiv = document.getElementById('timer');
-    const interval = setInterval(() => {{
-      if (remaining <= 0) {{
-        clearInterval(interval);
-        timerDiv.textContent = "✅ Temps écoulé. Module validé.";
-        // Appel à l'API SCORM pour notifier la complétion complète
-      }} else {{
-        remaining--;
-        let h = Math.floor(remaining / 3600);
-        let m = Math.floor((remaining % 3600) / 60);
-        let s = remaining % 60;
-        timerDiv.textContent = `Temps restant : ${{h.toString().padStart(2,'0')}}:${{m.toString().padStart(2,'0')}}:${{s.toString().padStart(2,'0')}}`;
-      }}
-    }}, 1000);
 
     document.getElementById('next-page').onclick = function() {{
       if (currentPage < totalPages) {{
@@ -355,6 +330,22 @@ document.addEventListener("DOMContentLoaded", function() {{
         renderPage(currentPage);
       }}
     }};
+
+    // Timer
+    const timerDiv = document.getElementById('timer');
+    const interval = setInterval(() => {{
+      if (timerRemaining <= 0) {{
+        clearInterval(interval);
+        timerDiv.textContent = "✅ Temps écoulé.";
+        updateCompletion();
+      }} else {{
+        timerRemaining--;
+        let h = Math.floor(timerRemaining / 3600);
+        let m = Math.floor((timerRemaining % 3600) / 60);
+        let s = timerRemaining % 60;
+        timerDiv.textContent = `Temps restant : ${{h.toString().padStart(2,'0')}}:${{m.toString().padStart(2,'0')}}:${{s.toString().padStart(2,'0')}}`;
+      }}
+    }}, 1000);
   </script>
 </body>
 </html>
@@ -363,14 +354,10 @@ document.addEventListener("DOMContentLoaded", function() {{
             with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
                 f.write(html_content)
 
-            # --- DÉBUT MODIFICATION PRINCIPALE : copier template + créer manifest + zipper ---
+            # Génération du imsmanifest.xml adapté à la version SCORM
 
-            # Copier le template SCORM selon version choisie dans le temp_dir
-            template_dir = scorm_template_dir_12 if scorm_12 else scorm_template_dir_2004
-            shutil.copytree(template_dir, temp_dir, dirs_exist_ok=True)
-
-            # Génération basique du manifest imsmanifest.xml (exemple simple)
-            manifest_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+            if scorm_12:
+                manifest_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="com.example.{scorm_filename}" version="1"
     xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
     xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
@@ -398,29 +385,58 @@ document.addEventListener("DOMContentLoaded", function() {{
   </resources>
 </manifest>
 """
+            else:
+                # SCORM 2004 (version simplifiée)
+                manifest_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="com.example.{scorm_filename}" version="1"
+  xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
+  xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_v1p3"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1
+  imscp_v1p1.xsd
+  http://www.adlnet.org/xsd/adlcp_v1p3
+  adlcp_v1p3.xsd">
 
-            manifest_path = os.path.join(temp_dir, "imsmanifest.xml")
-            with open(manifest_path, "w", encoding="utf-8") as mf:
-                mf.write(manifest_content)
+  <organizations default="ORG-1">
+    <organization identifier="ORG-1" structure="hierarchical">
+      <title>{scorm_title}</title>
+      <item identifier="ITEM-1" identifierref="RES-1">
+        <title>{scorm_title}</title>
+      </item>
+    </organization>
+  </organizations>
 
-            # Création du ZIP final avec la structure complète
-            zip_path = os.path.join(temp_dir, f"{scorm_filename}.zip")
+  <resources>
+    <resource identifier="RES-1" type="webcontent" adlcp:scormType="sco" href="index.html">
+      <file href="index.html"/>
+      <file href="{pdf_filename}"/>
+      <file href="viewer.js"/>
+    </resource>
+  </resources>
+</manifest>
+"""
+
+            with open(os.path.join(temp_dir, "imsmanifest.xml"), "w", encoding="utf-8") as f:
+                f.write(manifest_content)
+
+            # Création du fichier ZIP
+            zip_filename = f"{scorm_filename}_SCORM_{scorm_version}.zip"
+            zip_path = os.path.join(temp_dir, zip_filename)
             with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
                 for root, dirs, files in os.walk(temp_dir):
                     for file in files:
-                        if file != f"{scorm_filename}.zip":
-                            abs_path = os.path.join(root, file)
-                            arcname = os.path.relpath(abs_path, temp_dir)
-                            zipf.write(abs_path, arcname)
+                        if file == zip_filename:
+                            continue
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.relpath(file_path, temp_dir)
+                        zipf.write(file_path, arcname)
 
-            # --- FIN MODIFICATION PRINCIPALE ---
+            # Lire le zip et proposer en téléchargement
+            with open(zip_path, "rb") as f:
+                zip_data = f.read()
 
-            with open(zip_path, "rb") as fzip:
-                st.download_button(
-                    label="⬇️ Télécharger le package SCORM",
-                    data=fzip,
-                    file_name=f"{scorm_filename}.zip",
-                    mime="application/zip"
-                )
+            st.success(f"✅ SCORM prêt : {zip_filename}")
+            st.download_button("⬇️ Télécharger le package SCORM", zip_data, file_name=zip_filename, mime="application/zip")
 
-            st.info("✅ Le SCORM a été généré. Fermez ou relancez l'app pour nettoyer les fichiers temporaires.")
+            # Nettoyage (optionnel)
+            shutil.rmtree(temp_dir)
