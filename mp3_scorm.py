@@ -203,7 +203,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   let currentSubtitleIndex = 0;
 
   function parseVTT(data) {{
-    const pattern = /(\d{2}:\d{2}:\d{2}\.\d{3}) --> (\d{2}:\d{2}:\d{2}\.\d{3})\\n(.+)/g;
+    const pattern = /(\\d{{2}}:\\d{{2}}:\\d{{2}}\\.\\d{{3}}) --> (\\d{{2}}:\\d{{2}}:\\d{{2}}\\.\\d{{3}})\\n(.+)/g;
     let result;
     const cues = [];
     while ((result = pattern.exec(data)) !== null) {{
@@ -318,80 +318,81 @@ def get_language_label(lang):
     # Format "Pays (pa)" où pa = code langue
     try:
         country = pycountry.countries.get(alpha_2=lang.upper())
+        language = pycountry.languages.get(alpha_2=lang)
         country_name = country.name if country else lang.upper()
+        language_name = language.name if language else lang
+        return f"{language_name} ({lang})"
     except:
-        country_name = lang.upper()
-    return f"{country_name} ({lang})"
+        return lang
 
-language_codes = sorted({lang.alpha_2.lower() for lang in pycountry.countries if hasattr(lang, 'alpha_2')})
-
-language_options = [get_language_label(code) for code in language_codes]
-label_to_code = {label: label.split('(')[-1][:-1] for label in language_options}
-
-selected_languages = []
-subtitle_files_dict = {}
+subtitles = []
+subtitle_langs = []
 
 if add_subtitles:
-    st.markdown("### Sélection des langues pour les sous-titres")
-    selected_labels = st.multiselect(
-        "Choisissez les langues des sous-titres à importer :",
-        options=language_options,
-        default=[],
-        help="Tapez pour rechercher une langue"
-    )
-    selected_languages = [label_to_code[label] for label in selected_labels]
+    subtitle_files = st.file_uploader("Choisissez un ou plusieurs fichiers VTT (format WebVTT) pour les sous-titres", accept_multiple_files=True, type=['vtt'])
+    if subtitle_files:
+        for f in subtitle_files:
+            # On suppose nom comme: subtitle_en.vtt
+            name = f.name
+            # Extraire code langue (ex : subtitle_en.vtt)
+            parts = name.split('.')
+            base = parts[0]
+            lang_code = base.split('_')[-1] if '_' in base else 'und'
+            subtitles.append(f)
+            subtitle_langs.append(lang_code)
+    if subtitle_langs:
+        lang_options = [get_language_label(lang) for lang in subtitle_langs]
+        chosen_lang = st.selectbox("Choisissez la langue des sous-titres à afficher par défaut", lang_options)
+    else:
+        chosen_lang = None
+else:
+    chosen_lang = None
 
-    for lang_code in selected_languages:
-        label = get_language_label(lang_code)
-        subtitle_file = st.file_uploader(
-            f"Fichier de sous-titres pour {label} ({lang_code.upper()})",
-            type=["srt", "vtt"],
-            key=f"sub_{lang_code}"
-        )
-        if subtitle_file:
-            subtitle_files_dict[lang_code] = subtitle_file
+version = st.selectbox("Choisissez la version SCORM", ["1.2", "2004"])
 
-scorm_12 = st.checkbox("SCORM 1.2")
-scorm_2004 = st.checkbox("SCORM 2004")
-scorm_title = st.text_input("Titre du package SCORM (nom du fichier ZIP) :", value="Mon Cours Audio SCORM")
+if st.button("Générer le package SCORM"):
 
-if uploaded_file:
-    temp_dir = f"temp_scorm_{uuid.uuid4()}"
-    os.makedirs(temp_dir, exist_ok=True)
+    if not uploaded_file:
+        st.error("Veuillez d'abord uploader un fichier MP3.")
+    else:
+        tmpdir = f"scorm_tmp_{uuid.uuid4().hex}"
+        os.makedirs(tmpdir, exist_ok=True)
 
-    mp3_path = os.path.join(temp_dir, uploaded_file.name)
-    with open(mp3_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+        # Sauvegarder MP3 temporairement
+        mp3_path = os.path.join(tmpdir, uploaded_file.name)
+        with open(mp3_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
 
-    subtitle_paths = []
-    for lang_code, file in subtitle_files_dict.items():
-        ext = os.path.splitext(file.name)[1]
-        filename = f"sub_{lang_code}{ext}"
-        path = os.path.join(temp_dir, filename)
-        with open(path, "wb") as f:
-            f.write(file.getbuffer())
-        subtitle_paths.append(path)
+        # Sauvegarder les sous-titres temporairement
+        subtitle_paths = []
+        if add_subtitles and subtitles:
+            for subfile in subtitles:
+                path = os.path.join(tmpdir, subfile.name)
+                with open(path, "wb") as f:
+                    f.write(subfile.getbuffer())
+                subtitle_paths.append(path)
 
-    if st.button("Générer le package SCORM"):
-        if (scorm_12 and scorm_2004) or (not scorm_12 and not scorm_2004):
-            st.error("Veuillez cocher exactement une version SCORM : soit SCORM 1.2, soit SCORM 2004.")
-        else:
-            version = "1.2" if scorm_12 else "2004"
-            output_dir = os.path.join(temp_dir, "scorm_package")
-            create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_title)
+        # Créer dossier output final
+        outdir = f"scorm_package_{uuid.uuid4().hex}"
+        os.makedirs(outdir, exist_ok=True)
 
-            zip_path = os.path.join(temp_dir, f"{scorm_title}.zip")
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for foldername, subfolders, filenames in os.walk(output_dir):
-                    for filename in filenames:
-                        filepath = os.path.join(foldername, filename)
-                        arcname = os.path.relpath(filepath, output_dir)
-                        zipf.write(filepath, arcname)
+        # Créer package SCORM
+        create_scorm_package(mp3_path, subtitle_paths, outdir, version)
 
-            with open(zip_path, "rb") as f:
-                st.download_button(
-                    label="Télécharger le package SCORM",
-                    data=f,
-                    file_name=f"{scorm_title}.zip",
-                    mime="application/zip"
-                )
+        # Zip final
+        zip_path = f"{outdir}.zip"
+        with zipfile.ZipFile(zip_path, 'w') as zipf:
+            for foldername, _, filenames in os.walk(outdir):
+                for filename in filenames:
+                    filepath = os.path.join(foldername, filename)
+                    arcname = os.path.relpath(filepath, outdir)
+                    zipf.write(filepath, arcname)
+
+        # Nettoyer tmp
+        shutil.rmtree(tmpdir)
+        shutil.rmtree(outdir)
+
+        with open(zip_path, "rb") as fzip:
+            st.download_button("Télécharger le package SCORM", fzip, file_name="scorm_package.zip", mime="application/zip")
+
+        os.remove(zip_path)
