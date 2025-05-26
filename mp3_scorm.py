@@ -123,16 +123,16 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     let analyser;
     let source;
 
-    function setupAudio() {
+    function setupAudio() {{
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       source = audioContext.createMediaElementSource(audio);
       analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
       analyser.connect(audioContext.destination);
-    }
+    }}
 
-    function draw() {
+    function draw() {{
       requestAnimationFrame(draw);
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
@@ -143,34 +143,34 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
       const barWidth = canvas.width / bufferLength;
       let x = 0;
 
-      for (let i = 0; i < bufferLength; i++) {
+      for (let i = 0; i < bufferLength; i++) {{
         const barHeight = dataArray[i] / 255 * canvas.height;
         const red = Math.min(255, barHeight + 100);
         const green = Math.min(255, 250 * (i / bufferLength));
         const blue = 50;
-        ctx.fillStyle = `rgb(${red},${green},${blue})`;
+        ctx.fillStyle = `rgb(${{red}},${{green}},${{blue}})`;
         ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
         x += barWidth + 1;
-      }
-    }
+      }}
+    }}
 
     const subtitleDiv = document.getElementById('subtitle');
 
-    function animate() {
+    function animate() {{
       if (!audioContext) return;
       draw();
       requestAnimationFrame(animate);
-    }
+    }}
 
-    audio.addEventListener('play', () => {
-      if (!audioContext) {
+    audio.addEventListener('play', () => {{
+      if (!audioContext) {{
         setupAudio();
         animate();
-      }
-      if (audioContext.state === 'suspended') {
+      }}
+      if (audioContext.state === 'suspended') {{
         audioContext.resume();
-      }
-    });
+      }}
+    }});
   </script>
 </body>
 </html>'''
