@@ -5,7 +5,7 @@ import shutil
 
 # Fonction pour générer le fichier manifest selon la version SCORM
 def create_scorm_manifest(version, title, mp3_filename, subtitle_filename=None):
-    subtitle_entry = f"\n      <file href=\"{subtitle_filename}\"/>" if subtitle_filename else ""
+    subtitle_entry = f'\n      <file href="{subtitle_filename}"/>' if subtitle_filename else ""
 
     if version == "1.2":
         return f'''<?xml version="1.0" encoding="UTF-8"?>
@@ -69,6 +69,7 @@ def create_scorm_manifest(version, title, mp3_filename, subtitle_filename=None):
   </resources>
 </manifest>'''
 
+# Fonction de création du package SCORM
 def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_title="Mon Cours Audio SCORM"):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -80,6 +81,8 @@ def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_tit
     if subtitle_path:
         subtitle_filename = os.path.basename(subtitle_path)
         shutil.copy(subtitle_path, os.path.join(output_dir, subtitle_filename))
+
+    track_tag = f'<track src="{subtitle_filename}" kind="subtitles" srclang="fr" label="Français">' if subtitle_filename else ""
 
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
@@ -95,8 +98,9 @@ def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_tit
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  track_tag = f'<track src="{subtitle_filename}" kind="subtitles" srclang="fr" label="Français">' if subtitle_filename else ""
+  <audio id="audioPlayer" controls>
     <source src="{mp3_filename}" type="audio/mpeg">
+    {track_tag}
     Votre navigateur ne supporte pas la lecture audio.
   </audio>
   <canvas id="canvas"></canvas>
@@ -112,16 +116,16 @@ def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_tit
     let analyser;
     let source;
 
-    function setupAudio() {
+    function setupAudio() {{
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       source = audioContext.createMediaElementSource(audio);
       analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
       analyser.connect(audioContext.destination);
-    }
+    }}
 
-    function draw() {
+    function draw() {{
       requestAnimationFrame(draw);
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
@@ -132,7 +136,7 @@ def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_tit
       const barWidth = canvas.width / bufferLength;
       let x = 0;
 
-      for (let i = 0; i < bufferLength; i++) {
+      for (let i = 0; i < bufferLength; i++) {{
         const barHeight = dataArray[i] / 255 * canvas.height;
         const red = Math.min(255, barHeight + 100);
         const green = Math.min(255, 250 * (i / bufferLength));
@@ -140,18 +144,18 @@ def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_tit
         ctx.fillStyle = `rgb(${red},${green},${blue})`;
         ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
         x += barWidth + 1;
-      }
-    }
+      }}
+    }}
 
-    audio.onplay = () => {
-      if (!audioContext) {
+    audio.onplay = () => {{
+      if (!audioContext) {{
         setupAudio();
         draw();
-      }
-      if (audioContext.state === 'suspended') {
+      }}
+      if (audioContext.state === 'suspended') {{
         audioContext.resume();
-      }
-    };
+      }}
+    }};
   </script>
 </body>
 </html>'''
@@ -163,7 +167,7 @@ def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_tit
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest_xml)
 
-# Interface Streamlit
+# Interface utilisateur Streamlit
 st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio et Sous-titres")
 
 uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
@@ -174,7 +178,6 @@ if add_subtitles:
 
 scorm_12 = st.checkbox("SCORM 1.2")
 scorm_2004 = st.checkbox("SCORM 2004")
-
 scorm_title = st.text_input("Titre du package SCORM (nom du fichier ZIP) :", value="Mon Cours Audio SCORM")
 
 if uploaded_file:
