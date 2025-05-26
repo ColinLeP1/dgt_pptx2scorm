@@ -97,11 +97,15 @@ document.addEventListener("DOMContentLoaded", function() {{
     const printBtn = document.getElementById('print');
     const downloadBtn = document.getElementById('download');
 
-    // Si non imprimable, cacher le bouton
-    {'printBtn.style.display = "none";' if not printable else ''}
+    if (printBtn) {{
+        {'printBtn.disabled = true;' if not printable else ''}
+        {'printBtn.style.display = "none";' if not printable else ''}
+    }}
 
-    // Si non téléchargeable, cacher le bouton
-    {'downloadBtn.style.display = "none";' if not downloadable else ''}
+    if (downloadBtn) {{
+        {'downloadBtn.disabled = true;' if not downloadable else ''}
+        {'downloadBtn.style.display = "none";' if not downloadable else ''}
+    }}
 }});
 """
             with open(os.path.join(temp_dir, "viewer.js"), "w", encoding="utf-8") as f:
