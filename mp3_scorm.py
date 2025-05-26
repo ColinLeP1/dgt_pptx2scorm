@@ -3,18 +3,9 @@ import os
 import zipfile
 import shutil
 
-# Fonction pour créer le package SCORM
-def create_scorm_package(mp3_path, output_dir, scorm_title="Mon Cours Audio SCORM"):
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    mp3_filename = os.path.basename(mp3_path)
-    # Copier le mp3 dans output_dir
-    shutil.copy(mp3_path, os.path.join(output_dir, mp3_filename))
-
-    # Manifest SCORM 1.2 simple
-    imsmanifest = f'''<?xml version="1.0" encoding="UTF-8"?>
+def create_scorm_manifest(version, title, mp3_filename):
+    if version == "1.2":
+        return f'''<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="com.example.scorm" version="1.2"
   xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
   xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
@@ -29,9 +20,9 @@ def create_scorm_package(mp3_path, output_dir, scorm_title="Mon Cours Audio SCOR
   </metadata>
   <organizations default="ORG1">
     <organization identifier="ORG1">
-      <title>{scorm_title}</title>
+      <title>{title}</title>
       <item identifier="ITEM1" identifierref="RES1">
-        <title>{scorm_title}</title>
+        <title>{title}</title>
       </item>
     </organization>
   </organizations>
@@ -42,11 +33,51 @@ def create_scorm_package(mp3_path, output_dir, scorm_title="Mon Cours Audio SCOR
     </resource>
   </resources>
 </manifest>'''
+    else:  # SCORM 2004 basique
+        return f'''<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="com.example.scorm2004" version="1.0"
+  xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
+  xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_v1p3"
+  xmlns:imsss="http://www.imsglobal.org/xsd/imsss"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1
+                      imscp_v1p1.xsd
+                      http://www.adlnet.org/xsd/adlcp_v1p3
+                      adlcp_v1p3.xsd
+                      http://www.imsglobal.org/xsd/imsss
+                      imsss_v1p0.xsd">
+  <metadata>
+    <schema>ADL SCORM</schema>
+    <schemaversion>2004 3rd Edition</schemaversion>
+  </metadata>
+  <organizations default="ORG1">
+    <organization identifier="ORG1">
+      <title>{title}</title>
+      <item identifier="ITEM1" identifierref="RES1" isvisible="true">
+        <title>{title}</title>
+      </item>
+    </organization>
+  </organizations>
+  <resources>
+    <resource identifier="RES1" type="webcontent" adlcp:scormType="sco" href="index.html">
+      <file href="index.html"/>
+      <file href="{mp3_filename}"/>
+    </resource>
+  </resources>
+</manifest>'''
 
+def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours Audio SCORM"):
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    mp3_filename = os.path.basename(mp3_path)
+    shutil.copy(mp3_path, os.path.join(output_dir, mp3_filename))
+
+    manifest_xml = create_scorm_manifest(version, scorm_title, mp3_filename)
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
-        f.write(imsmanifest)
+        f.write(manifest_xml)
 
-    # Page HTML avec spectre audio (intégré)
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -130,10 +161,11 @@ def create_scorm_package(mp3_path, output_dir, scorm_title="Mon Cours Audio SCOR
 # Streamlit interface
 st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio")
 
+scorm_version = st.selectbox("Choisissez la version SCORM", options=["1.2", "2004"])
+
 uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
 
 if uploaded_file:
-    # Sauvegarder temporairement le mp3 uploadé
     temp_dir = "temp_scorm"
     if os.path.exists(temp_dir):
         shutil.rmtree(temp_dir)
@@ -147,9 +179,8 @@ if uploaded_file:
 
     if st.button("Générer le package SCORM"):
         output_dir = os.path.join(temp_dir, "scorm_package")
-        create_scorm_package(mp3_path, output_dir)
+        create_scorm_package(mp3_path, output_dir, scorm_version)
 
-        # Zipper le package SCORM
         zip_path = os.path.join(temp_dir, "scorm_package.zip")
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for foldername, subfolders, filenames in os.walk(output_dir):
