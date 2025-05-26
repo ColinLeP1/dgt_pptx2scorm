@@ -88,6 +88,10 @@ if st.button("📁 Générer le SCORM", disabled=disable_generate):
         with st.spinner("📦 Création du package SCORM..."):
 
             temp_dir = tempfile.mkdtemp()
+
+            template_dir = scorm_template_dir_12 if scorm_12 else scorm_template_dir_2004
+            shutil.copytree(template_dir, temp_dir, dirs_exist_ok=True)
+            
             pdf_filename = uploaded_file.name
             pdf_path = os.path.join(temp_dir, pdf_filename)
 
