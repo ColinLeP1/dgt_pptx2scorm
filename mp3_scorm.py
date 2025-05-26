@@ -104,60 +104,102 @@ def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_tit
   <div id="subtitle"></div>
   <script>
     const audio = document.getElementById('audioPlayer');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = canvas.clientWidth * window.devicePixelRatio;
-    canvas.height = canvas.clientHeight * window.devicePixelRatio;
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = canvas.clientWidth * window.devicePixelRatio;
+canvas.height = canvas.clientHeight * window.devicePixelRatio;
+ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-    let audioContext;
-    let analyser;
-    let source;
+let audioContext;
+let analyser;
+let source;
 
-    function setupAudio() {{
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      source = audioContext.createMediaElementSource(audio);
-      analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-      analyser.connect(audioContext.destination);
-    }}
+function setupAudio() {
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  source = audioContext.createMediaElementSource(audio);
+  analyser = audioContext.createAnalyser();
+  analyser.fftSize = 256;
+  source.connect(analyser);
+  analyser.connect(audioContext.destination);
+}
 
-    function draw() {{
-      requestAnimationFrame(draw);
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      analyser.getByteFrequencyData(dataArray);
+function draw() {
+  requestAnimationFrame(draw);
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+  analyser.getByteFrequencyData(dataArray);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const barWidth = canvas.width / bufferLength;
-      let x = 0;
+  const barWidth = canvas.width / bufferLength;
+  let x = 0;
 
-      for (let i = 0; i < bufferLength; i++) {{
-        const barHeight = dataArray[i] / 255 * canvas.height;
-        const red = Math.min(255, barHeight + 100);
-        const green = Math.min(255, 250 * (i / bufferLength));
-        const blue = 50;
-        ctx.fillStyle = "rgb(" + red + "," + green + "," + blue + ")";
-        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-        x += barWidth + 1;
-      }}
-    }}
+  for (let i = 0; i < bufferLength; i++) {
+    const barHeight = dataArray[i] / 255 * canvas.height;
+    const red = Math.min(255, barHeight + 100);
+    const green = Math.min(255, 250 * (i / bufferLength));
+    const blue = 50;
+    ctx.fillStyle = `rgb(${red},${green},${blue})`;
+    ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+    x += barWidth + 1;
+  }
+}
 
-    const subtitleDiv = document.getElementById('subtitle');
-    let subtitles = [];
+const subtitleDiv = document.getElementById('subtitle');
+let subtitles = [];
 
-    if (audio.textTracks && audio.textTracks.length > 0) {{
-      const track = audio.textTracks[0];
-      track.mode = 'hidden';
+if (audio.textTracks && audio.textTracks.length > 0) {
+  const track = audio.textTracks[0];
+  track.mode = 'hidden';
 
-      track.addEventListener('load', () => {{
-        subtitles = Array.from(track.cues).map(cue => ({{
-          start: cue.startTime,
-          end: cue.endTime,
-          text: cue.text
-        }}));
+  if (track.cues && track.cues.length > 0) {
+    subtitles = Array.from(track.cues).map(cue => ({
+      start: cue.startTime,
+      end: cue.endTime,
+      text: cue.text
+    }));
+  }
+
+  track.addEventListener('cuechange', () => {
+    const activeCues = Array.from(track.activeCues || []);
+    if (activeCues.length > 0) {
+      subtitleDiv.textContent = activeCues[0].text;
+    } else {
+      subtitleDiv.textContent = '';
+    }
+  });
+}
+
+function updateSubtitle(currentTime) {
+  if (!subtitles.length) {
+    subtitleDiv.textContent = '';
+    return;
+  }
+  const currentSubtitle = subtitles.find(s => currentTime >= s.start && currentTime <= s.end);
+  if (currentSubtitle) {
+    subtitleDiv.textContent = currentSubtitle.text;
+  } else {
+    subtitleDiv.textContent = '';
+  }
+}
+
+function animate() {
+  if (!audioContext) return;
+  updateSubtitle(audio.currentTime);
+  draw();
+  requestAnimationFrame(animate);
+}
+
+audio.addEventListener('play', () => {
+  if (!audioContext) {
+    setupAudio();
+    animate();
+  }
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
+});
+
       }});
 
       if (track.cues && track.cues.length > 0) {{
