@@ -211,7 +211,16 @@ document.addEventListener("DOMContentLoaded", function() {{
   <style>
     body {{ font-family: sans-serif; background: #f8f9fa; padding: 20px; }}
     h1 {{ color: #333; }}
-    #timer {{ font-size: 20px; font-weight: bold; margin-bottom: 15px; color: darkblue; }}
+    #timer {{ font-size: 3rem;
+    font-weight: 700;
+    color: #0078d4;
+    background: #e1f0ff;
+    padding: 20px 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,120,212,0.3);
+    user-select: none;
+    margin-bottom: 30px;
+    width: fit-content; }}
     embed {{ width: 100%; height: 600px; border: 1px solid #ccc; }}
   </style>
 </head>
