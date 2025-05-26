@@ -4,7 +4,7 @@ import os
 import tempfile
 import shutil
 import zipfile
-
+import distutils.dir_util  # <-- AJOUT ici
 
 st.set_page_config(page_title="Générateur SCORM PDF", layout="centered")
 st.title("📦 Générateur de SCORM à partir d’un PDF")
