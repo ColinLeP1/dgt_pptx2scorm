@@ -161,10 +161,10 @@ def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours A
 # Streamlit interface
 st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio")
 
+uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
+
 scorm_12 = st.checkbox("SCORM 1.2")
 scorm_2004 = st.checkbox("SCORM 2004")
-
-uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
 
 if uploaded_file:
     temp_dir = "temp_scorm"
