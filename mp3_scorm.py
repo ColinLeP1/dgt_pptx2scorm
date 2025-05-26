@@ -101,203 +101,78 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   #audioPlayer {{ display: inline-block; margin-bottom: 10px; }}
   canvas {{ border: 1px solid #444; background-color: #000; width: 80%; max-width: 600px; height: 150px; display: block; margin: 0 auto; }}
   #subtitle {{ color: white; font-size: 20px; margin-top: 10px; height: 40px; }}
-  #ccButton {{
-    cursor: pointer;
-    background-color: #444;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    margin-left: 10px;
-    border-radius: 4px;
-  }}
-  #ccMenu {{
-    display: none;
-    position: absolute;
-    background-color: #333;
-    color: white;
-    border: 1px solid #555;
-    padding: 5px;
-    margin-top: 5px;
-    border-radius: 4px;
-  }}
-  #ccMenu button {{
-    background: none;
-    border: none;
-    color: white;
-    padding: 5px 10px;
-    width: 100%;
-    text-align: left;
-    cursor: pointer;
-  }}
-  #ccMenu button:hover {{
-    background-color: #555;
-  }}
 </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <audio id="audioPlayer" controls crossorigin="anonymous">
+  <audio id="audioPlayer" controls>
     <source src="{mp3_filename}" type="audio/mpeg">
     {track_elements}
     Votre navigateur ne supporte pas la lecture audio.
   </audio>
-  <button id="ccButton">CC</button>
-  <div id="ccMenu"></div>
   <canvas id="canvas"></canvas>
   <div id="subtitle"></div>
-<script>
-  const audio = document.getElementById('audioPlayer');
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
-  const ccButton = document.getElementById('ccButton');
-  const ccMenu = document.getElementById('ccMenu');
+  <script>
+    const audio = document.getElementById('audioPlayer');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.clientWidth * window.devicePixelRatio;
+    canvas.height = canvas.clientHeight * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-  canvas.width = canvas.clientWidth * window.devicePixelRatio;
-  canvas.height = canvas.clientHeight * window.devicePixelRatio;
-  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    let audioContext;
+    let analyser;
+    let source;
 
-  let audioContext;
-  let analyser;
-  let source;
-
-  function setupAudio() {{
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    source = audioContext.createMediaElementSource(audio);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-    analyser.connect(audioContext.destination);
-  }}
-
-  function draw() {{
-    requestAnimationFrame(draw);
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    analyser.getByteFrequencyData(dataArray);
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const barWidth = canvas.width / bufferLength;
-    let x = 0;
-
-    for (let i = 0; i < bufferLength; i++) {{
-      const barHeight = dataArray[i] / 255 * canvas.height;
-      const red = Math.min(255, barHeight + 100);
-      const green = Math.min(255, 250 * (i / bufferLength));
-      const blue = 50;
-      ctx.fillStyle = `rgb(${{red}},${{green}},${{blue}})`;
-      ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-      x += barWidth + 1;
+    function setupAudio() {{
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      source = audioContext.createMediaElementSource(audio);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
     }}
-  }}
 
-  const subtitleDiv = document.getElementById('subtitle');
+    function draw() {{
+      requestAnimationFrame(draw);
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteFrequencyData(dataArray);
 
-  // Affiche sous-titre courant
-  function showSubtitle(text) {{
-    subtitleDiv.textContent = text || "";
-  }}
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Gestion des sous-titres
-  let subtitles = [];
-  let currentSubtitleIndex = 0;
+      const barWidth = canvas.width / bufferLength;
+      let x = 0;
 
-  function parseVTT(data) {{
-    const pattern = /(\\d{{2}}:\\d{{2}}:\\d{{2}}\\.\\d{{3}}) --> (\\d{{2}}:\\d{{2}}:\\d{{2}}\\.\\d{{3}})\\n(.+)/g;
-    let result;
-    const cues = [];
-    while ((result = pattern.exec(data)) !== null) {{
-      cues.push({{
-        start: toSeconds(result[1]),
-        end: toSeconds(result[2]),
-        text: result[3]
-      }});
-    }}
-    return cues;
-  }}
-
-  function toSeconds(time) {{
-    const parts = time.split(':');
-    return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
-  }}
-
-  function loadSubtitles(track) {{
-    fetch(track.src).then(response => response.text()).then(text => {{
-      subtitles = parseVTT(text);
-      currentSubtitleIndex = 0;
-    }});
-  }}
-
-  function updateSubtitle() {{
-    if (!subtitles.length) {{
-      showSubtitle("");
-      return;
-    }}
-    const currentTime = audio.currentTime;
-    if (currentSubtitleIndex < subtitles.length) {{
-      const cue = subtitles[currentSubtitleIndex];
-      if (currentTime >= cue.start && currentTime <= cue.end) {{
-        showSubtitle(cue.text);
-      }} else if (currentTime > cue.end) {{
-        currentSubtitleIndex++;
-        updateSubtitle();
-      }} else {{
-        showSubtitle("");
+      for (let i = 0; i < bufferLength; i++) {{
+        const barHeight = dataArray[i] / 255 * canvas.height;
+        const red = Math.min(255, barHeight + 100);
+        const green = Math.min(255, 250 * (i / bufferLength));
+        const blue = 50;
+        ctx.fillStyle = `rgb(${{red}},${{green}},${{blue}})`;
+        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+        x += barWidth + 1;
       }}
-    }} else {{
-      showSubtitle("");
     }}
-  }}
 
-  // Bouton CC : afficher/masquer menu
-  ccButton.addEventListener('click', () => {{
-    if (ccMenu.style.display === 'block') {{
-      ccMenu.style.display = 'none';
-    }} else {{
-      ccMenu.style.display = 'block';
-    }}
-  }});
+    const subtitleDiv = document.getElementById('subtitle');
 
-  // Crée les boutons pour les pistes de sous-titres
-  function createCCButtons() {{
-    const tracks = audio.textTracks;
-    ccMenu.innerHTML = '';
-    for(let i = 0; i < tracks.length; i++) {{
-      const btn = document.createElement('button');
-      btn.textContent = tracks[i].label;
-      btn.onclick = () => {{
-        for(let j = 0; j < tracks.length; j++) {{
-          tracks[j].mode = 'disabled';
-        }}
-        tracks[i].mode = 'showing';
-        subtitles = [];
-        currentSubtitleIndex = 0;
-        loadSubtitles(tracks[i]);
-      }};
-      ccMenu.appendChild(btn);
-    }}
-  }}
-
-  audio.addEventListener('play', () => {{
-    if (!audioContext) {{
-      setupAudio();
+    function animate() {{
+      if (!audioContext) return;
       draw();
+      requestAnimationFrame(animate);
     }}
-    if (audioContext.state === 'suspended') {{
-      audioContext.resume();
-    }}
-  }});
 
-  audio.addEventListener('timeupdate', updateSubtitle);
-
-  audio.addEventListener('loadedmetadata', () => {{
-    createCCButtons();
-    // Par défaut désactive tous les sous-titres
-    for(let i = 0; i < audio.textTracks.length; i++) {{
-      audio.textTracks[i].mode = 'disabled';
-    }}
-  }});
-</script>
+    audio.addEventListener('play', () => {{
+      if (!audioContext) {{
+        setupAudio();
+        animate();
+      }}
+      if (audioContext.state === 'suspended') {{
+        audioContext.resume();
+      }}
+    }});
+  </script>
 </body>
 </html>'''
 
@@ -314,85 +189,79 @@ st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio et Sous-titres"
 uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
 add_subtitles = st.checkbox("Ajouter des sous-titres")
 
-def get_language_label(lang):
-    # Format "Pays (pa)" où pa = code langue
-    try:
-        country = pycountry.countries.get(alpha_2=lang.upper())
-        language = pycountry.languages.get(alpha_2=lang)
-        country_name = country.name if country else lang.upper()
-        language_name = language.name if language else lang
-        return f"{language_name} ({lang})"
-    except:
-        return lang
+# Récupération des langues via pycountry (avec code alpha_2)
+languages = []
+for lang in pycountry.languages:
+    if hasattr(lang, 'alpha_2'):
+        languages.append((lang.alpha_2, lang.name))
+languages = sorted(languages, key=lambda x: x[1])
 
-subtitles = []
-subtitle_langs = []
+language_options = [f"{name} ({code})" for code, name in languages]
+code_map = {f"{name} ({code})": code for code, name in languages}
+
+selected_languages = []
+subtitle_files_dict = {}
 
 if add_subtitles:
-    subtitle_files = st.file_uploader("Choisissez un ou plusieurs fichiers VTT (format WebVTT) pour les sous-titres", accept_multiple_files=True, type=['vtt'])
-    if subtitle_files:
-        for f in subtitle_files:
-            # On suppose nom comme: subtitle_en.vtt
-            name = f.name
-            # Extraire code langue (ex : subtitle_en.vtt)
-            parts = name.split('.')
-            base = parts[0]
-            lang_code = base.split('_')[-1] if '_' in base else 'und'
-            subtitles.append(f)
-            subtitle_langs.append(lang_code)
-    if subtitle_langs:
-        lang_options = [get_language_label(lang) for lang in subtitle_langs]
-        chosen_lang = st.selectbox("Choisissez la langue des sous-titres à afficher par défaut", lang_options)
-    else:
-        chosen_lang = None
-else:
-    chosen_lang = None
+    st.markdown("### Sélection des langues pour les sous-titres")
+    selected_labels = st.multiselect(
+        "Choisissez les langues des sous-titres à importer :",
+        options=language_options,
+        default=[],
+        help="Tapez pour rechercher une langue"
+    )
+    selected_languages = [code_map[label] for label in selected_labels]
 
-version = st.selectbox("Choisissez la version SCORM", ["1.2", "2004"])
+    for lang_code in selected_languages:
+        subtitle_file = st.file_uploader(
+            f"Fichier de sous-titres pour {lang_code}",
+            type=["srt", "vtt"],
+            key=f"sub_{lang_code}"
+        )
+        if subtitle_file:
+            subtitle_files_dict[lang_code] = subtitle_file
 
-if st.button("Générer le package SCORM"):
+scorm_12 = st.checkbox("SCORM 1.2")
+scorm_2004 = st.checkbox("SCORM 2004")
+scorm_title = st.text_input("Titre du package SCORM (nom du fichier ZIP) :", value="Mon Cours Audio SCORM")
 
-    if not uploaded_file:
-        st.error("Veuillez d'abord uploader un fichier MP3.")
-    else:
-        tmpdir = f"scorm_tmp_{uuid.uuid4().hex}"
-        os.makedirs(tmpdir, exist_ok=True)
+if uploaded_file:
+    temp_dir = f"temp_scorm_{uuid.uuid4()}"
+    os.makedirs(temp_dir, exist_ok=True)
 
-        # Sauvegarder MP3 temporairement
-        mp3_path = os.path.join(tmpdir, uploaded_file.name)
-        with open(mp3_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+    mp3_path = os.path.join(temp_dir, uploaded_file.name)
+    with open(mp3_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
 
-        # Sauvegarder les sous-titres temporairement
-        subtitle_paths = []
-        if add_subtitles and subtitles:
-            for subfile in subtitles:
-                path = os.path.join(tmpdir, subfile.name)
-                with open(path, "wb") as f:
-                    f.write(subfile.getbuffer())
-                subtitle_paths.append(path)
+    subtitle_paths = []
+    for lang_code, file in subtitle_files_dict.items():
+        ext = os.path.splitext(file.name)[1]
+        filename = f"sub_{lang_code}{ext}"
+        path = os.path.join(temp_dir, filename)
+        with open(path, "wb") as f:
+            f.write(file.getbuffer())
+        subtitle_paths.append(path)
 
-        # Créer dossier output final
-        outdir = f"scorm_package_{uuid.uuid4().hex}"
-        os.makedirs(outdir, exist_ok=True)
+    if st.button("Générer le package SCORM"):
+        if (scorm_12 and scorm_2004) or (not scorm_12 and not scorm_2004):
+            st.error("Veuillez cocher exactement une version SCORM : soit SCORM 1.2, soit SCORM 2004.")
+        else:
+            version = "1.2" if scorm_12 else "2004"
+            output_dir = os.path.join(temp_dir, "scorm_package")
+            create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_title)
 
-        # Créer package SCORM
-        create_scorm_package(mp3_path, subtitle_paths, outdir, version)
+            zip_path = os.path.join(temp_dir, f"{scorm_title}.zip")
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for foldername, subfolders, filenames in os.walk(output_dir):
+                    for filename in filenames:
+                        filepath = os.path.join(foldername, filename)
+                        arcname = os.path.relpath(filepath, output_dir)
+                        zipf.write(filepath, arcname)
 
-        # Zip final
-        zip_path = f"{outdir}.zip"
-        with zipfile.ZipFile(zip_path, 'w') as zipf:
-            for foldername, _, filenames in os.walk(outdir):
-                for filename in filenames:
-                    filepath = os.path.join(foldername, filename)
-                    arcname = os.path.relpath(filepath, outdir)
-                    zipf.write(filepath, arcname)
-
-        # Nettoyer tmp
-        shutil.rmtree(tmpdir)
-        shutil.rmtree(outdir)
-
-        with open(zip_path, "rb") as fzip:
-            st.download_button("Télécharger le package SCORM", fzip, file_name="scorm_package.zip", mime="application/zip")
-
-        os.remove(zip_path)
+            with open(zip_path, "rb") as f:
+                st.download_button(
+                    label="Télécharger le package SCORM",
+                    data=f,
+                    file_name=f"{scorm_title}.zip",
+                    mime="application/zip"
+                )
