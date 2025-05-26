@@ -119,7 +119,7 @@ def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours A
       analyser.connect(audioContext.destination);
     }}
 
-    function draw() {
+    function draw() {{
   requestAnimationFrame(draw);
   const bufferLength = analyser.frequencyBinCount;
   const dataArray = new Uint8Array(bufferLength);
