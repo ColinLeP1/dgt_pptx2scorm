@@ -419,4 +419,4 @@ document.addEventListener("DOMContentLoaded", function() {{
                     mime="application/zip"
                 )
 
-            shutil.rmtree(temp_dir)
+            st.info("✅ Le SCORM a été généré. Fermez ou relancez l'app pour nettoyer les fichiers temporaires.")
