@@ -90,24 +90,22 @@ def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_tit
   body {{ font-family: Arial, sans-serif; background-color: #222; color: #eee; padding: 20px; text-align: center; }}
   h1 {{ margin-bottom: 20px; }}
   #audioPlayer {{ display: inline-block; margin-bottom: 10px; }}
-  canvas {{ border: 1px solid #444; background-color: #000; width: 80%; max-width: 600px; height: 150px; display: block; margin: 0 auto 20px auto; }}
-  #subtitles {{ font-size: 18px; color: #0f0; min-height: 40px; }}
+  canvas {{ border: 1px solid #444; background-color: #000; width: 80%; max-width: 600px; height: 150px; display: block; margin: 0 auto; }}
+  #subtitle {{ color: white; font-size: 20px; margin-top: 10px; height: 40px; }}
 </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <audio id="audioPlayer" controls>
+  <audio id="audioPlayer" controls {f'track src="{subtitle_filename}" kind="subtitles" srclang="fr" label="Français">' if subtitle_filename else ''}>
     <source src="{mp3_filename}" type="audio/mpeg">
     Votre navigateur ne supporte pas la lecture audio.
   </audio>
   <canvas id="canvas"></canvas>
-  <div id="subtitles"></div>
-
+  <div id="subtitle"></div>
   <script>
     const audio = document.getElementById('audioPlayer');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const subtitlesDiv = document.getElementById('subtitles');
     canvas.width = canvas.clientWidth * window.devicePixelRatio;
     canvas.height = canvas.clientHeight * window.devicePixelRatio;
     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
@@ -115,45 +113,6 @@ def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_tit
     let audioContext;
     let analyser;
     let source;
-
-    // Variables pour les sous-titres
-    let subtitles = [];
-
-    // Fonction parse SRT simple (format basique)
-    function parseSRT(data) {{
-      const srtRegex = /(\\d+)\\s+(\\d{{2}}:\\d{{2}}:\\d{{2}},\\d{{3}})\\s+-->\\s+(\\d{{2}}:\\d{{2}}:\\d{{2}},\\d{{3}})\\s+([\\s\\S]*?)(?=\\n\\n|\\n*$)/g;
-      let result, subs = [];
-      while ((result = srtRegex.exec(data)) !== null) {{
-        subs.push({{
-          start: toSeconds(result[2]),
-          end: toSeconds(result[3]),
-          text: result[4].trim().replace(/\\n/g, '<br>')
-        }});
-      }}
-      return subs;
-    }}
-
-    // Convertit "HH:MM:SS,mmm" en secondes float
-    function toSeconds(timeString) {{
-      const parts = timeString.split(':');
-      const secsAndMillis = parts[2].split(',');
-      return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(secsAndMillis[0]) + parseInt(secsAndMillis[1]) / 1000;
-    }}
-
-    // Affiche la sous-titre correspondant à currentTime
-    function displaySubtitle(currentTime) {{
-      const sub = subtitles.find(s => currentTime >= s.start && currentTime <= s.end);
-      subtitlesDiv.innerHTML = sub ? sub.text : '';
-    }}
-
-    // Chargement et parsing du fichier de sous-titres (si présent)
-    {f'''
-    fetch("{subtitle_filename}")
-      .then(response => response.text())
-      .then(data => {{
-        subtitles = parseSRT(data);
-      }});
-    ''' if subtitle_filename else ''}
 
     function setupAudio() {{
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -180,18 +139,60 @@ def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_tit
         const red = Math.min(255, barHeight + 100);
         const green = Math.min(255, 250 * (i / bufferLength));
         const blue = 50;
-        ctx.fillStyle = "rgb(" + red + "," + green + "," + blue + ")";
+        ctx.fillStyle = `rgb(${red},${green},${blue})`;
         ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
         x += barWidth + 1;
       }}
+    }}
 
-      displaySubtitle(audio.currentTime);
+    const subtitleDiv = document.getElementById('subtitle');
+    let subtitles = [];
+
+    if (audio.textTracks && audio.textTracks.length > 0) {{
+      const track = audio.textTracks[0];
+      track.mode = 'hidden';
+
+      track.addEventListener('load', () => {{
+        subtitles = Array.from(track.cues).map(cue => ({{
+          start: cue.startTime,
+          end: cue.endTime,
+          text: cue.text
+        }}));
+      }});
+
+      if (track.cues && track.cues.length > 0) {{
+        subtitles = Array.from(track.cues).map(cue => ({{
+          start: cue.startTime,
+          end: cue.endTime,
+          text: cue.text
+        }}));
+      }}
+    }}
+
+    function updateSubtitle(currentTime) {{
+      if (!subtitles.length) {{
+        subtitleDiv.textContent = '';
+        return;
+      }}
+      const currentSubtitle = subtitles.find(s => currentTime >= s.start && currentTime <= s.end);
+      if (currentSubtitle) {{
+        subtitleDiv.textContent = currentSubtitle.text;
+      }} else {{
+        subtitleDiv.textContent = '';
+      }}
+    }}
+
+    function animate() {{
+      if (!audioContext) return;
+      updateSubtitle(audio.currentTime);
+      draw();
+      requestAnimationFrame(animate);
     }}
 
     audio.onplay = () => {{
       if (!audioContext) {{
         setupAudio();
-        draw();
+        animate();
       }}
       if (audioContext.state === 'suspended') {{
         audioContext.resume();
