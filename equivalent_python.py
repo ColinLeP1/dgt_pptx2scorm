@@ -4,7 +4,6 @@ import os
 import tempfile
 import shutil
 import zipfile
-import distutils.dir_util  # <-- AJOUT ici
 
 st.set_page_config(page_title="Générateur SCORM PDF", layout="centered")
 st.title("📦 Générateur de SCORM à partir d’un PDF")
@@ -364,7 +363,7 @@ document.addEventListener("DOMContentLoaded", function() {{
 
             # Copier le template SCORM selon version choisie dans le temp_dir
             template_dir = scorm_template_dir_12 if scorm_12 else scorm_template_dir_2004
-            distutils.dir_util.copy_tree(template_dir, temp_dir)
+            shutil.copytree(template_dir, temp_dir, dirs_exist_ok=True)
 
             # Génération basique du manifest imsmanifest.xml (exemple simple)
             manifest_content = f"""<?xml version="1.0" encoding="UTF-8"?>
