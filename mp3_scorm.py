@@ -86,8 +86,8 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
             shutil.copy(path, os.path.join(output_dir, filename))
 
     track_elements = "\n    ".join([
-    f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}" />' 
-    for fn in subtitle_filenames
+        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}" />' 
+        for fn in subtitle_filenames
     ])
 
     html_content = f'''<!DOCTYPE html>
@@ -183,70 +183,38 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest_xml)
 
-# -------------------- Ajout pycountry + drapeaux --------------------
-
-# Fonction pour convertir un code pays ISO alpha-2 en emoji drapeau
-def country_code_to_emoji(country_code):
-    if len(country_code) != 2:
-        return ""
-    OFFSET = 127397
-    return chr(ord(country_code[0].upper()) + OFFSET) + chr(ord(country_code[1].upper()) + OFFSET)
-
-# Génère la liste complète des langues avec un drapeau quand possible
-def get_languages_with_flags():
-    languages = []
-    for lang in pycountry.languages:
-        if hasattr(lang, 'alpha_2'):
-            lang_code = lang.alpha_2
-            lang_name = lang.name
-            # On associe certaines langues majeures à un pays pour afficher un drapeau
-            mapping = {
-                'en': 'GB',
-                'fr': 'FR',
-                'es': 'ES',
-                'de': 'DE',
-                'it': 'IT',
-                'pt': 'PT',
-                'nl': 'NL',
-                'zh': 'CN',
-                'ja': 'JP',
-                'ru': 'RU'
-            }
-            country = mapping.get(lang_code, None)
-            flag = country_code_to_emoji(country) if country else ""
-            display_label = f"{flag} {lang_name} ({lang_code})"
-            languages.append((display_label, lang_code))
-    languages.sort(key=lambda x: x[0])
-    return languages
-
-# -------------------- Interface Streamlit --------------------
-
+# Interface Streamlit
 st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio et Sous-titres")
 
 uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
 add_subtitles = st.checkbox("Ajouter des sous-titres")
 
-subtitle_files_dict = {}
+# Récupération des langues via pycountry (avec code alpha_2)
+languages = []
+for lang in pycountry.languages:
+    if hasattr(lang, 'alpha_2'):
+        languages.append((lang.alpha_2, lang.name))
+languages = sorted(languages, key=lambda x: x[1])
+
+language_options = [f"{name} ({code})" for code, name in languages]
+code_map = {f"{name} ({code})": code for code, name in languages}
+
 selected_languages = []
+subtitle_files_dict = {}
 
 if add_subtitles:
     st.markdown("### Sélection des langues pour les sous-titres")
-
-    languages_list = get_languages_with_flags()
-    label_to_code = {label: code for label, code in languages_list}
-
     selected_labels = st.multiselect(
         "Choisissez les langues des sous-titres à importer :",
-        options=[label for label, code in languages_list],
+        options=language_options,
         default=[],
         help="Tapez pour rechercher une langue"
     )
-    selected_languages = [label_to_code[label] for label in selected_labels]
+    selected_languages = [code_map[label] for label in selected_labels]
 
     for lang_code in selected_languages:
-        label = next(label for label, code in languages_list if code == lang_code)
         subtitle_file = st.file_uploader(
-            f"Fichier de sous-titres pour {label}",
+            f"Fichier de sous-titres pour {lang_code}",
             type=["srt", "vtt"],
             key=f"sub_{lang_code}"
         )
