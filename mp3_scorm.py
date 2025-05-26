@@ -180,7 +180,7 @@ def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_tit
         const red = Math.min(255, barHeight + 100);
         const green = Math.min(255, 250 * (i / bufferLength));
         const blue = 50;
-        ctx.fillStyle = `rgb(${red},${green},${blue})`;
+        ctx.fillStyle = "rgb(" + red + "," + green + "," + blue + ")";
         ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
         x += barWidth + 1;
       }}
