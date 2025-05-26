@@ -33,7 +33,7 @@ def create_scorm_manifest(version, title, mp3_filename):
     </resource>
   </resources>
 </manifest>'''
-    else:  # SCORM 2004 basique
+    else:
         return f'''<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="com.example.scorm2004" version="1.0"
   xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
@@ -67,7 +67,6 @@ def create_scorm_manifest(version, title, mp3_filename):
 </manifest>'''
 
 def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours Audio SCORM"):
-
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -157,9 +156,7 @@ def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours A
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html_content)
 
-
-# --- Streamlit Interface ---
-
+# Streamlit interface
 st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio")
 
 uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
@@ -187,7 +184,6 @@ if uploaded_file:
     st.write(f"Fichier MP3 reçu : {uploaded_file.name}")
 
     if st.button("Générer le package SCORM"):
-        # Validation des cases cochées
         if (scorm_12 and scorm_2004) or (not scorm_12 and not scorm_2004):
             st.error("Veuillez cocher exactement une version SCORM : soit SCORM 1.2, soit SCORM 2004.")
         else:
