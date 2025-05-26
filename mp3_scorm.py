@@ -95,7 +95,7 @@ def create_scorm_package(mp3_path, subtitle_path, output_dir, version, scorm_tit
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <audio id="audioPlayer" controls {f'track src="{subtitle_filename}" kind="subtitles" srclang="fr" label="Français">' if subtitle_filename else ''}>
+  track_tag = f'<track src="{subtitle_filename}" kind="subtitles" srclang="fr" label="Français">' if subtitle_filename else ""
     <source src="{mp3_filename}" type="audio/mpeg">
     Votre navigateur ne supporte pas la lecture audio.
   </audio>
