@@ -86,7 +86,7 @@ def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours A
 <style>
   body {{ font-family: Arial, sans-serif; background-color: #222; color: #eee; padding: 20px; text-align: center; }}
   h1 {{ margin-bottom: 20px; }}
-  #audioPlayer {{ display: none; }} /* cacher le lecteur audio */
+  #audioPlayer {{ display: inline-block; margin-bottom: 10px; }}
   canvas {{ border: 1px solid #444; background-color: #000; width: 80%; max-width: 600px; height: 150px; display: block; margin: 0 auto; }}
 </style>
 </head>
@@ -135,7 +135,7 @@ def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours A
         const red = Math.min(255, barHeight + 100);
         const green = Math.min(255, 250 * (i / bufferLength));
         const blue = 50;
-        ctx.fillStyle = `rgb(${{red}},${{green}},${{blue}})`;
+        ctx.fillStyle = `rgb(${red},${green},${blue})`;
         ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
         x += barWidth + 1;
       }}
@@ -158,13 +158,21 @@ def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours A
         f.write(html_content)
 
 
-# Streamlit interface
+# --- Streamlit Interface ---
+
 st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio")
 
 uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
 
 scorm_12 = st.checkbox("SCORM 1.2")
 scorm_2004 = st.checkbox("SCORM 2004")
+
+if uploaded_file:
+    default_title = uploaded_file.name.rsplit('.', 1)[0]
+else:
+    default_title = "Mon Cours Audio SCORM"
+
+scorm_title = st.text_input("Titre du package SCORM (nom du fichier ZIP) :", value=default_title)
 
 if uploaded_file:
     temp_dir = "temp_scorm"
@@ -185,9 +193,9 @@ if uploaded_file:
         else:
             version = "1.2" if scorm_12 else "2004"
             output_dir = os.path.join(temp_dir, "scorm_package")
-            create_scorm_package(mp3_path, output_dir, version)
+            create_scorm_package(mp3_path, output_dir, version, scorm_title)
 
-            zip_path = os.path.join(temp_dir, "scorm_package.zip")
+            zip_path = os.path.join(temp_dir, f"{scorm_title}.zip")
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for foldername, subfolders, filenames in os.walk(output_dir):
                     for filename in filenames:
@@ -199,6 +207,6 @@ if uploaded_file:
                 st.download_button(
                     label="Télécharger le package SCORM",
                     data=f,
-                    file_name="scorm_package.zip",
+                    file_name=f"{scorm_title}.zip",
                     mime="application/zip"
                 )
