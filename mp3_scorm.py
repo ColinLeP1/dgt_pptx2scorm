@@ -2,13 +2,11 @@ import streamlit as st
 import os
 import zipfile
 import shutil
+import uuid
 
 # Fonction pour générer le fichier manifest selon la version SCORM
-def create_scorm_manifest(version, title, mp3_filename, subtitle_filenames=None):
-    subtitle_entries = ""
-    if subtitle_filenames:
-        for sub in subtitle_filenames:
-            subtitle_entries += f"\n      <file href=\"{sub}\"/>"
+def create_scorm_manifest(version, title, mp3_filename, subtitle_filenames):
+    subtitle_entries = "".join([f"\n      <file href=\"{fn}\"/>" for fn in subtitle_filenames]) if subtitle_filenames else ""
 
     if version == "1.2":
         return f'''<?xml version="1.0" encoding="UTF-8"?>
@@ -80,16 +78,16 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     shutil.copy(mp3_path, os.path.join(output_dir, mp3_filename))
 
     subtitle_filenames = []
-    audio_tracks = ""
     if subtitle_paths:
         for path in subtitle_paths:
             filename = os.path.basename(path)
             subtitle_filenames.append(filename)
             shutil.copy(path, os.path.join(output_dir, filename))
-            lang = os.path.splitext(filename)[0]
-            label = lang.capitalize()
-            default_attr = " default" if len(audio_tracks) == 0 else ""
-            audio_tracks += f'\n      <track src="{filename}" kind="subtitles" srclang="{lang}" label="{label}"{default_attr} />'
+
+    track_elements = "\n    ".join([
+        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}">' 
+        for fn in subtitle_filenames
+    ])
 
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
@@ -106,14 +104,9 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <div style="margin: 10px;">
-    <label for="subtitleToggle">Afficher les sous-titres : </label>
-    <input type="checkbox" id="subtitleToggle" checked />
-    <label for="languageSelect" style="margin-left: 15px;">Langue : </label>
-    <select id="languageSelect"></select>
-  </div>
   <audio id="audioPlayer" controls>
-    <source src="{mp3_filename}" type="audio/mpeg">{audio_tracks}
+    <source src="{mp3_filename}" type="audio/mpeg">
+    {track_elements}
     Votre navigateur ne supporte pas la lecture audio.
   </audio>
   <canvas id="canvas"></canvas>
@@ -162,43 +155,6 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     }
 
     const subtitleDiv = document.getElementById('subtitle');
-    const subtitleToggle = document.getElementById('subtitleToggle');
-    const languageSelect = document.getElementById('languageSelect');
-
-    function updateTrackList() {
-      const tracks = audio.textTracks;
-      languageSelect.innerHTML = '';
-
-      for (let i = 0; i < tracks.length; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.text = tracks[i].label || tracks[i].language || `Langue ${i + 1}`;
-        languageSelect.appendChild(option);
-      }
-
-      languageSelect.addEventListener('change', () => {
-        for (let i = 0; i < tracks.length; i++) {
-          tracks[i].mode = 'disabled';
-        }
-        const selectedTrack = tracks[languageSelect.value];
-        if (subtitleToggle.checked) {
-          selectedTrack.mode = 'hidden';
-        }
-      });
-
-      subtitleToggle.addEventListener('change', () => {
-        const selectedTrack = tracks[languageSelect.value];
-        selectedTrack.mode = subtitleToggle.checked ? 'hidden' : 'disabled';
-      });
-
-      if (tracks.length > 0) {
-        tracks[0].mode = 'hidden';
-      }
-    }
-
-    window.onload = () => {
-      updateTrackList();
-    };
 
     function animate() {
       if (!audioContext) return;
@@ -241,10 +197,8 @@ scorm_2004 = st.checkbox("SCORM 2004")
 scorm_title = st.text_input("Titre du package SCORM (nom du fichier ZIP) :", value="Mon Cours Audio SCORM")
 
 if uploaded_file:
-    temp_dir = "temp_scorm"
-    if os.path.exists(temp_dir):
-        shutil.rmtree(temp_dir)
-    os.makedirs(temp_dir)
+    temp_dir = f"temp_scorm_{uuid.uuid4()}"
+    os.makedirs(temp_dir, exist_ok=True)
 
     mp3_path = os.path.join(temp_dir, uploaded_file.name)
     with open(mp3_path, "wb") as f:
@@ -252,10 +206,10 @@ if uploaded_file:
 
     subtitle_paths = []
     for file in subtitle_files:
-        path = os.path.join(temp_dir, file.name)
-        with open(path, "wb") as f:
+        subtitle_path = os.path.join(temp_dir, file.name)
+        with open(subtitle_path, "wb") as f:
             f.write(file.getbuffer())
-        subtitle_paths.append(path)
+        subtitle_paths.append(subtitle_path)
 
     if st.button("Générer le package SCORM"):
         if (scorm_12 and scorm_2004) or (not scorm_12 and not scorm_2004):
