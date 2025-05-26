@@ -3,6 +3,7 @@ import os
 import zipfile
 import shutil
 import uuid
+import pycountry
 
 # Fonction pour générer le fichier manifest selon la version SCORM
 def create_scorm_manifest(version, title, mp3_filename, subtitle_filenames):
@@ -182,44 +183,70 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest_xml)
 
-# Interface Streamlit
+# -------------------- Ajout pycountry + drapeaux --------------------
+
+# Fonction pour convertir un code pays ISO alpha-2 en emoji drapeau
+def country_code_to_emoji(country_code):
+    if len(country_code) != 2:
+        return ""
+    OFFSET = 127397
+    return chr(ord(country_code[0].upper()) + OFFSET) + chr(ord(country_code[1].upper()) + OFFSET)
+
+# Génère la liste complète des langues avec un drapeau quand possible
+def get_languages_with_flags():
+    languages = []
+    for lang in pycountry.languages:
+        if hasattr(lang, 'alpha_2'):
+            lang_code = lang.alpha_2
+            lang_name = lang.name
+            # On associe certaines langues majeures à un pays pour afficher un drapeau
+            mapping = {
+                'en': 'GB',
+                'fr': 'FR',
+                'es': 'ES',
+                'de': 'DE',
+                'it': 'IT',
+                'pt': 'PT',
+                'nl': 'NL',
+                'zh': 'CN',
+                'ja': 'JP',
+                'ru': 'RU'
+            }
+            country = mapping.get(lang_code, None)
+            flag = country_code_to_emoji(country) if country else ""
+            display_label = f"{flag} {lang_name} ({lang_code})"
+            languages.append((display_label, lang_code))
+    languages.sort(key=lambda x: x[0])
+    return languages
+
+# -------------------- Interface Streamlit --------------------
+
 st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio et Sous-titres")
 
 uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
 add_subtitles = st.checkbox("Ajouter des sous-titres")
 
-# Drapeaux + langues
-language_options = {
-    "en": "🇬🇧 Anglais",
-    "fr": "🇫🇷 Français",
-    "es": "🇪🇸 Espagnol",
-    "de": "🇩🇪 Allemand",
-    "it": "🇮🇹 Italien",
-    "pt": "🇵🇹 Portugais",
-    "nl": "🇳🇱 Néerlandais",
-    "zh": "🇨🇳 Chinois",
-    "ja": "🇯🇵 Japonais",
-    "ru": "🇷🇺 Russe"
-}
-label_to_code = {label: code for code, label in language_options.items()}
-
-selected_languages = []
 subtitle_files_dict = {}
+selected_languages = []
 
 if add_subtitles:
     st.markdown("### Sélection des langues pour les sous-titres")
+
+    languages_list = get_languages_with_flags()
+    label_to_code = {label: code for label, code in languages_list}
+
     selected_labels = st.multiselect(
         "Choisissez les langues des sous-titres à importer :",
-        options=list(language_options.values()),
+        options=[label for label, code in languages_list],
         default=[],
         help="Tapez pour rechercher une langue"
     )
     selected_languages = [label_to_code[label] for label in selected_labels]
 
     for lang_code in selected_languages:
-        label = language_options[lang_code]
+        label = next(label for label, code in languages_list if code == lang_code)
         subtitle_file = st.file_uploader(
-            f"Fichier de sous-titres pour {label} ({lang_code.upper()})",
+            f"Fichier de sous-titres pour {label}",
             type=["srt", "vtt"],
             key=f"sub_{lang_code}"
         )
