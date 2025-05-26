@@ -161,7 +161,8 @@ def create_scorm_package(mp3_path, output_dir, version, scorm_title="Mon Cours A
 # Streamlit interface
 st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio")
 
-scorm_version = st.selectbox("Choisissez la version SCORM", options=["1.2", "2004"])
+scorm_12 = st.checkbox("SCORM 1.2")
+scorm_2004 = st.checkbox("SCORM 2004")
 
 uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
 
@@ -178,21 +179,26 @@ if uploaded_file:
     st.write(f"Fichier MP3 reçu : {uploaded_file.name}")
 
     if st.button("Générer le package SCORM"):
-        output_dir = os.path.join(temp_dir, "scorm_package")
-        create_scorm_package(mp3_path, output_dir, scorm_version)
+        # Validation des cases cochées
+        if (scorm_12 and scorm_2004) or (not scorm_12 and not scorm_2004):
+            st.error("Veuillez cocher exactement une version SCORM : soit SCORM 1.2, soit SCORM 2004.")
+        else:
+            version = "1.2" if scorm_12 else "2004"
+            output_dir = os.path.join(temp_dir, "scorm_package")
+            create_scorm_package(mp3_path, output_dir, version)
 
-        zip_path = os.path.join(temp_dir, "scorm_package.zip")
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for foldername, subfolders, filenames in os.walk(output_dir):
-                for filename in filenames:
-                    filepath = os.path.join(foldername, filename)
-                    arcname = os.path.relpath(filepath, output_dir)
-                    zipf.write(filepath, arcname)
+            zip_path = os.path.join(temp_dir, "scorm_package.zip")
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for foldername, subfolders, filenames in os.walk(output_dir):
+                    for filename in filenames:
+                        filepath = os.path.join(foldername, filename)
+                        arcname = os.path.relpath(filepath, output_dir)
+                        zipf.write(filepath, arcname)
 
-        with open(zip_path, "rb") as f:
-            st.download_button(
-                label="Télécharger le package SCORM",
-                data=f,
-                file_name="scorm_package.zip",
-                mime="application/zip"
-            )
+            with open(zip_path, "rb") as f:
+                st.download_button(
+                    label="Télécharger le package SCORM",
+                    data=f,
+                    file_name="scorm_package.zip",
+                    mime="application/zip"
+                )
