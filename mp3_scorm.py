@@ -285,12 +285,11 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
         audioContext.resume();
       }}
     }});
-    const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
 
 function resizeCanvas() {
   canvas.width = canvas.clientWidth * window.devicePixelRatio;
   canvas.height = canvas.clientHeight * window.devicePixelRatio;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 }
 resizeCanvas();
