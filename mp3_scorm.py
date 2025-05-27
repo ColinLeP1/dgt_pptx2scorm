@@ -5,6 +5,19 @@ import shutil
 import uuid
 import pycountry
 
+# Fonction pour convertir un fichier .srt en .vtt
+def srt_to_vtt(srt_path, vtt_path):
+    with open(srt_path, 'r', encoding='utf-8') as srt_file:
+        lines = srt_file.readlines()
+
+    with open(vtt_path, 'w', encoding='utf-8') as vtt_file:
+        vtt_file.write("WEBVTT\n\n")  # entête obligatoire VTT
+
+        for line in lines:
+            if '-->' in line:
+                line = line.replace(',', '.')
+            vtt_file.write(line)
+
 # Fonction pour générer le fichier manifest selon la version SCORM
 def create_scorm_manifest(version, title, mp3_filename, subtitle_filenames):
     subtitle_entries = "".join([f'\n      <file href="{fn}"/>' for fn in subtitle_filenames]) if subtitle_filenames else ""
@@ -317,39 +330,37 @@ if uploaded_file:
 
     subtitle_paths = []
     for lang_code, file in subtitle_files_dict.items():
-        ext = os.path.splitext(file.name)[1]
-        filename = f"sub_{lang_code}{ext}"
-        path = os.path.join(temp_dir, filename)
-        with open(path, "wb") as f:
-            f.write(file.getbuffer())
-        subtitle_paths.append(path)
-
-    completion_rate = st.slider(
-        "Taux de complétion requis (%) pour valider l'audio :",
-        min_value=10, max_value=100, value=80, step=1,
-        help="L'audio doit être écouté au moins à ce pourcentage pour être considéré comme complété."
-    )
-
-    if st.button("Générer le package SCORM"):
-        if (scorm_12 and scorm_2004) or (not scorm_12 and not scorm_2004):
-            st.error("Veuillez cocher exactement une version SCORM : soit SCORM 1.2, soit SCORM 2004.")
+        ext = os.path.splitext(file.name)[1].lower()
+        if ext == '.srt':
+            # Sauvegarder le srt
+            srt_filename = f"sub_{lang_code}.srt"
+            srt_path = os.path.join(temp_dir, srt_filename)
+            with open(srt_path, "wb") as f:
+                f.write(file.getbuffer())
+            # Convertir en vtt
+            vtt_filename = f"sub_{lang_code}.vtt"
+            vtt_path = os.path.join(temp_dir, vtt_filename)
+            srt_to_vtt(srt_path, vtt_path)
+            subtitle_paths.append(vtt_path)  # On utilise le .vtt converti
         else:
-            version = "1.2" if scorm_12 else "2004"
-            output_dir = os.path.join(temp_dir, "scorm_package")
-            create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_title, completion_rate)
+            # Pas besoin de conversion, on copie directement
+            filename = f"sub_{lang_code}{ext}"
+            path = os.path.join(temp_dir, filename)
+            with open(path, "wb") as f:
+                f.write(file.getbuffer())
+            subtitle_paths.append(path)
 
-            zip_path = os.path.join(temp_dir, f"{scorm_title}.zip")
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for foldername, subfolders, filenames in os.walk(output_dir):
-                    for filename in filenames:
-                        filepath = os.path.join(foldername, filename)
-                        arcname = os.path.relpath(filepath, output_dir)
-                        zipf.write(filepath, arcname)
+    if st.button("Créer le package SCORM"):
+        if not (scorm_12 or scorm_2004):
+            st.error("Veuillez sélectionner au moins une version SCORM (1.2 ou 2004).")
+        else:
+            selected_version = "1.2" if scorm_12 else "2004"
+            output_dir = f"scorm_output_{uuid.uuid4()}"
+            create_scorm_package(mp3_path, subtitle_paths, output_dir, selected_version, scorm_title)
+            shutil.make_archive(output_dir, 'zip', output_dir)
+            with open(f"{output_dir}.zip", "rb") as f:
+                st.download_button("Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
 
-            with open(zip_path, "rb") as f:
-                st.download_button(
-                    label="Télécharger le package SCORM",
-                    data=f,
-                    file_name=f"{scorm_title}.zip",
-                    mime="application/zip"
-                )
+            # Nettoyage
+            shutil.rmtree(temp_dir)
+            shutil.rmtree(output_dir)
