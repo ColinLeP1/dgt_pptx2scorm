@@ -87,20 +87,25 @@ def create_scorm_manifest(version, title, video_filename, subtitle_filenames):
 
 def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
     os.makedirs(output_dir, exist_ok=True)
-    video_filename = os.path.basename(video_path)
+
+    # Forcer un nom de fichier standardisé pour éviter erreurs MIME
+    video_filename = "video.mp4"
     shutil.copy(video_path, os.path.join(output_dir, video_filename))
 
+    # Copie des sous-titres dans le dossier de sortie
     subtitle_filenames = []
     for path in subtitle_paths:
         filename = os.path.basename(path)
         subtitle_filenames.append(filename)
         shutil.copy(path, os.path.join(output_dir, filename))
 
-    track_elements = "\n    ".join([
-        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}" />'
+    # Création des balises <track> pour chaque sous-titre
+    track_elements = "\n      ".join([
+        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{pycountry.languages.get(alpha_2=os.path.splitext(fn)[0].split("_")[-1]).name}" default />'
         for fn in subtitle_filenames
     ])
 
+    # Génération du HTML avec Plyr + sous-titres intégrés
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -108,73 +113,49 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
   <title>{scorm_title}</title>
   <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <style>
-  body {{
-    font-family: Arial, sans-serif;
-    background-color: #222;
-    color: #eee;
-    padding: 20px;
-    text-align: center;
-  }}
-
-  .player-container {{
-    position: relative;
-    width: 80%;
-    max-width: 600px;
-    margin: 0 auto;
-  }}
-
-  video, .plyr {{
-    width: 100%;
-  }}
-
-  .plyr__captions {{
-    position: absolute;
-    bottom: 10%;
-    width: 100%;
-    z-index: 10;
-    background-color: rgba(0, 0, 0, 0.7);
-    padding: 5px 10px;
-    border-radius: 5px;
-    text-align: center;
-  }}
-
-  .plyr__caption {{
-    color: white;
-    background: transparent;
-    font-size: 1.2em;
-    line-height: 1.4;
-    white-space: pre-wrap;
-    display: inline-block;
-  }}
-
-  #completion-message {{
-    margin-top: 20px;
-    font-weight: bold;
-    color: #4caf50;
-    display: none;
-  }}
+    body {{
+      font-family: Arial, sans-serif;
+      background-color: #222;
+      color: #eee;
+      padding: 20px;
+      text-align: center;
+    }}
+    .player-container {{
+      width: 80%;
+      max-width: 800px;
+      margin: auto;
+    }}
+    video {{
+      width: 100%;
+    }}
+    #completion-message {{
+      margin-top: 20px;
+      font-weight: bold;
+      color: #4caf50;
+      display: none;
+    }}
   </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <p id="completion-info">Taux de complétion requis pour valider : <strong>{completion_rate}%</strong></p>
+  <p>Taux de complétion requis : <strong>{completion_rate}%</strong></p>
   <p id="completion-message">Vous avez atteint le seuil de complétion requis 🎉</p>
 
   <div class="player-container">
     <video id="player" controls crossorigin>
       <source src="{video_filename}" type="video/mp4" />
-      {{track_elements}}
-      Your browser does not support the video element.
+      {track_elements}
+      Votre navigateur ne prend pas en charge la vidéo.
     </video>
   </div>
 
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
-    const completionRate = {{completion_rate}};
+    const completionRate = {completion_rate};
     const video = document.getElementById('player');
     const completionMessage = document.getElementById('completion-message');
-    let completed = false;
     let maxPlayed = 0;
+    let completed = false;
 
     function findAPI(win) {{
       let attempts = 0;
@@ -190,7 +171,6 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
         console.warn("SCORM API non trouvée.");
         return;
       }}
-
       try {{
         if (api.SetValue) {{
           api.SetValue("cmi.completion_status", "completed");
@@ -222,19 +202,25 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
     }});
 
     const plyrPlayer = new Plyr('#player', {{
-      captions: {{ active: true, update: true, language: 'auto' }},
+      captions: {{
+        active: true,
+        update: true,
+        language: 'auto'
+      }}
     }});
   </script>
 </body>
 </html>'''
 
-
+    # Écriture du fichier HTML
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html_content)
 
+    # Création du manifeste SCORM
     manifest = create_scorm_manifest(version, scorm_title, video_filename, subtitle_filenames)
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest)
+
 
 # --- Interface utilisateur Streamlit ---
 
