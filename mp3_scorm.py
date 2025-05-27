@@ -291,7 +291,7 @@ function resizeCanvas() {{
   canvas.height = canvas.clientHeight * window.devicePixelRatio;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-}}
+}};
 resizeCanvas();
 window.addEventListener('resize', () => {
   resizeCanvas();
