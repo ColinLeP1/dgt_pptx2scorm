@@ -72,7 +72,7 @@ def create_scorm_manifest(version, title, mp3_filename, subtitle_filenames):
 </manifest>'''
 
 # Fonction principale de création du package SCORM
-def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_title="Mon Cours Audio SCORM"):
+def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_title="Mon Cours Audio SCORM", completion_rate=80):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -134,10 +134,31 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
 <body>
   <h1>{scorm_title}</h1>
 
-  <audio id="player" controls crossorigin>
-    <source src="{mp3_filename}" type="audio/mp3" />
-    {track_elements}
-  </audio>
+  <p id="completion-info">Taux de complétion requis pour valider : <strong>{completion_rate}%</strong></p>
+
+<video id="player" controls crossorigin>
+  <source src="{mp3_filename}" type="audio/mp3" />
+  {track_elements}
+  Your browser does not support the audio element.
+</video>
+
+<canvas id="canvas"></canvas>
+
+<script>
+  const completionRate = {completion_rate};
+  const player = document.getElementById('player');
+  let completed = false;
+
+  player.addEventListener('timeupdate', () => {
+    if (completed || !player.duration) return;
+    const playedPercent = (player.currentTime / player.duration) * 100;
+    if (playedPercent >= completionRate) {
+      completed = true;
+      alert('🎉 Bravo ! Vous avez atteint le taux de complétion requis.');
+    }
+  });
+</script>
+
 
   <canvas id="canvas"></canvas>
 
@@ -263,14 +284,21 @@ if uploaded_file:
         with open(path, "wb") as f:
             f.write(file.getbuffer())
         subtitle_paths.append(path)
+        
+    completion_rate = st.slider(
+    "Taux de complétion requis (%) pour valider l'audio :",
+    min_value=10, max_value=100, value=80, step=1,
+    help="L'audio doit être écouté au moins à ce pourcentage pour être considéré comme complété."
+)
 
+    
     if st.button("Générer le package SCORM"):
         if (scorm_12 and scorm_2004) or (not scorm_12 and not scorm_2004):
             st.error("Veuillez cocher exactement une version SCORM : soit SCORM 1.2, soit SCORM 2004.")
         else:
             version = "1.2" if scorm_12 else "2004"
             output_dir = os.path.join(temp_dir, "scorm_package")
-            create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_title)
+            create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_title, completion_rate)
 
             zip_path = os.path.join(temp_dir, f"{scorm_title}.zip")
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
