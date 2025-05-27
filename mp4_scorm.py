@@ -108,46 +108,126 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
   <title>{scorm_title}</title>
   <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <style>
-    body {{ background-color: #111; color: white; font-family: sans-serif; text-align: center; padding: 20px; }}
-    .player-container {{ max-width: 720px; margin: auto; }}
-    .plyr__captions {{ background-color: rgba(0,0,0,0.7); padding: 0.2em 0.5em; border-radius: 0.3em; }}
+  body {{
+    font-family: Arial, sans-serif;
+    background-color: #222;
+    color: #eee;
+    padding: 20px;
+    text-align: center;
+  }}
+
+  .player-container {{
+    position: relative;
+    width: 80%;
+    max-width: 600px;
+    margin: 0 auto;
+  }}
+
+  video, .plyr {{
+    width: 100%;
+  }}
+
+  .plyr__captions {{
+    position: absolute;
+    bottom: 10%;
+    width: 100%;
+    z-index: 10;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 5px 10px;
+    border-radius: 5px;
+    text-align: center;
+  }}
+
+  .plyr__caption {{
+    color: white;
+    background: transparent;
+    font-size: 1.2em;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    display: inline-block;
+  }}
+
+  #completion-message {{
+    margin-top: 20px;
+    font-weight: bold;
+    color: #4caf50;
+    display: none;
+  }}
   </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <p>Taux de complétion requis : {completion_rate}%</p>
+  <p id="completion-info">Taux de complétion requis pour valider : <strong>{completion_rate}%</strong></p>
+  <p id="completion-message">Vous avez atteint le seuil de complétion requis 🎉</p>
+
   <div class="player-container">
-    <video id="player" controls crossorigin playsinline>
-      <source src="{video_filename}" type="video/mp4">
+    <video id="player" controls crossorigin>
+      <source src="{mp3_filename}" type="audio/mp3" />
       {track_elements}
+      Your browser does not support the audio element.
     </video>
   </div>
+
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
     const completionRate = {completion_rate};
-    const video = document.getElementById('player');
-    const plyrPlayer = new Plyr('#player');
-    let completed = false, maxPlayed = 0;
+    const audio = document.getElementById('player');
+    const completionMessage = document.getElementById('completion-message');
+    let completed = false;
+    let maxPlayed = 0;
 
-    video.addEventListener('timeupdate', () => {
-      if (!video.duration) return;
-      if (video.currentTime > maxPlayed + 0.75) video.currentTime = maxPlayed;
-      else maxPlayed = Math.max(maxPlayed, video.currentTime);
-      const playedPercent = (video.currentTime / video.duration) * 100;
-      if (!completed && playedPercent >= completionRate) {
+    function findAPI(win) {{
+      let attempts = 0;
+      while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {{
+        win = win.parent;
+      }}
+      return win.API_1484_11 || win.API || null;
+    }}
+
+    function setScormCompleted() {{
+      const api = findAPI(window);
+      if (!api) {{
+        console.warn("SCORM API non trouvée.");
+        return;
+      }}
+
+      try {{
+        if (api.SetValue) {{
+          api.SetValue("cmi.completion_status", "completed");
+          api.Commit("");
+        }} else if (api.LMSSetValue) {{
+          api.LMSSetValue("cmi.core.lesson_status", "completed");
+          api.LMSCommit("");
+        }}
+      }} catch (e) {{
+        console.error("Erreur SCORM:", e);
+      }}
+    }}
+
+    audio.addEventListener('timeupdate', () => {{
+      if (!audio.duration) return;
+
+      if (audio.currentTime > maxPlayed + 0.75) {{
+        audio.currentTime = maxPlayed;
+      }} else {{
+        maxPlayed = Math.max(maxPlayed, audio.currentTime);
+      }}
+
+      const playedPercent = (audio.currentTime / audio.duration) * 100;
+      if (!completed && playedPercent >= completionRate) {{
         completed = true;
-        const api = window.API_1484_11 || window.API;
-        if (api) {
-          try {
-            if (api.SetValue) { api.SetValue("cmi.completion_status", "completed"); api.Commit(""); }
-            else if (api.LMSSetValue) { api.LMSSetValue("cmi.core.lesson_status", "completed"); api.LMSCommit(""); }
-          } catch(e) { console.error("Erreur SCORM:", e); }
-        }
-      }
-    });
+        completionMessage.style.display = 'block';
+        setScormCompleted();
+      }}
+    }});
+
+    const plyrPlayer = new Plyr('#player', {{
+      captions: {{ active: true, update: true, language: 'auto' }},
+    }});
   </script>
 </body>
 </html>'''
+
 
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html_content)
