@@ -264,26 +264,30 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     }}
 
     function draw() {{
-      requestAnimationFrame(draw);
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      analyser.getByteFrequencyData(dataArray);
+  requestAnimationFrame(draw);
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+  analyser.getByteFrequencyData(dataArray);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Fond noir opaque
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      const barWidth = canvas.width / bufferLength;
-      let x = 0;
+  const barWidth = canvas.width / bufferLength;
+  let x = 0;
 
-      for (let i = 0; i < bufferLength; i++) {{
-        const barHeight = dataArray[i] / 255 * canvas.height;
-        const red = Math.min(255, barHeight + 100);
-        const green = Math.min(255, 250 * (i / bufferLength));
-        const blue = 50;
-        ctx.fillStyle = `rgb(${{red}},${{green}},${{blue}})`;
-        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-        x += barWidth + 1;
-      }}
-    }}
+  for (let i = 0; i < bufferLength; i++) {{
+    const barHeight = dataArray[i] / 255 * canvas.height;
+    // Couleurs plus sombres, moins saturées, pour pas gêner les sous-titres
+    const red = 50;
+    const green = 100 * (i / bufferLength);
+    const blue = barHeight / 2;
+    ctx.fillStyle = `rgba(${red},${green},${blue}, 0.6)`;  // avec transparence
+    ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+    x += barWidth + 1;
+  }}
+}}
+
 
     audio.addEventListener('play', () => {{
       if (!audioContext) {{
