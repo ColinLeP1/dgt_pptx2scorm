@@ -131,31 +131,38 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   }}
 
   canvas {{
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100% !important;
-    height: 100% !important;
-    pointer-events: none;
-    z-index: 5;  /* plus bas que les sous-titres */
-    mix-blend-mode: screen;
-  }}
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none;
+  z-index: 1;  /* En arrière */
+  mix-blend-mode: screen;
+}}
 
-  .plyr__captions {{
-    position: absolute;
-    bottom: 10%;
-    width: 100%;
-    z-index: 10; /* au-dessus du canvas */
-    background: rgba(0, 0, 0, 1) !important; /* fond noir semi-transparent */
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 1.2em;
-    line-height: 1.4;
-  }}
+.plyr__captions {{
+  position: absolute;
+  bottom: 10%;
+  width: 100%;
+  z-index: 10;
+  /* Pas de fond ici pour éviter conflit */
+  background: transparent !important;
+  padding: 0;
+  margin: 0;
+}}
 
-  .plyr__caption {{
-    color: white;
-  }}
+.plyr__caption {{
+  position: relative;
+  z-index: 20;  /* Plus haut que canvas et captions */
+  background: rgba(0, 0, 0, 0.7);  /* Fond noir semi-transparent */
+  padding: 5px 10px;
+  border-radius: 5px;
+  display: inline-block;  /* Ajuste la taille au texte */
+  color: white;
+  font-size: 1.2em;
+  line-height: 1.4;
+}}
 
   #completion-message {{
     margin-top: 20px;
