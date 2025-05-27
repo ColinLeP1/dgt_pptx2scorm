@@ -152,85 +152,117 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   <canvas id="canvas"></canvas>
 
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
-  <script>
-    const completionRate = {completion_rate};
-    const audio = document.getElementById('player');
-    const completionMessage = document.getElementById('completion-message');
-    let completed = false;
-    let maxPlayed = 0;
+<script>
+  const completionRate = {completion_rate};
+  const audio = document.getElementById('player');
+  const completionMessage = document.getElementById('completion-message');
+  let completed = false;
+  let maxPlayed = 0;
 
-    audio.addEventListener('timeupdate', () => {{
-      if (!audio.duration) return;
+  // Détection et utilisation de l'API SCORM
+  function findAPI(win) {
+    let attempts = 0;
+    while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {
+      win = win.parent;
+    }
+    return win.API_1484_11 || win.API || null;
+  }
 
-      if (audio.currentTime > maxPlayed + 0.75) {{
-        // L'utilisateur a tenté d'avancer
-        audio.currentTime = maxPlayed;
-      }} else {{
-        maxPlayed = Math.max(maxPlayed, audio.currentTime);
-      }}
+  function setScormCompleted() {
+    const api = findAPI(window);
+    if (!api) {
+      console.warn("SCORM API non trouvée.");
+      return;
+    }
 
-      const playedPercent = (audio.currentTime / audio.duration) * 100;
-      if (!completed && playedPercent >= completionRate) {{
-        completed = true;
-        completionMessage.style.display = 'block';
-      }}
-    }});
+    try {
+      // SCORM 2004
+      if (api.SetValue) {
+        api.SetValue("cmi.completion_status", "completed");
+        api.Commit("");
+      } else if (api.LMSSetValue) {
+        // SCORM 1.2
+        api.LMSSetValue("cmi.core.lesson_status", "completed");
+        api.LMSCommit("");
+      }
+    } catch (e) {
+      console.error("Erreur SCORM:", e);
+    }
+  }
 
-    const plyrPlayer = new Plyr('#player', {{
-      captions: {{ active: true, update: true, language: 'auto' }},
-    }});
+  audio.addEventListener('timeupdate', () => {
+    if (!audio.duration) return;
 
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = canvas.clientWidth * window.devicePixelRatio;
-    canvas.height = canvas.clientHeight * window.devicePixelRatio;
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    if (audio.currentTime > maxPlayed + 0.75) {
+      audio.currentTime = maxPlayed;
+    } else {
+      maxPlayed = Math.max(maxPlayed, audio.currentTime);
+    }
 
-    let audioContext;
-    let analyser;
-    let source;
+    const playedPercent = (audio.currentTime / audio.duration) * 100;
+    if (!completed && playedPercent >= completionRate) {
+      completed = true;
+      completionMessage.style.display = 'block';
+      setScormCompleted();
+    }
+  });
 
-    function setupAudio() {{
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      source = audioContext.createMediaElementSource(audio);
-      analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-      analyser.connect(audioContext.destination);
-    }}
+  const plyrPlayer = new Plyr('#player', {
+    captions: { active: true, update: true, language: 'auto' },
+  });
 
-    function draw() {{
-      requestAnimationFrame(draw);
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      analyser.getByteFrequencyData(dataArray);
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.clientWidth * window.devicePixelRatio;
+  canvas.height = canvas.clientHeight * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  let audioContext;
+  let analyser;
+  let source;
 
-      const barWidth = canvas.width / bufferLength;
-      let x = 0;
+  function setupAudio() {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    source = audioContext.createMediaElementSource(audio);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+    analyser.connect(audioContext.destination);
+  }
 
-      for (let i = 0; i < bufferLength; i++) {{
-        const barHeight = dataArray[i] / 255 * canvas.height;
-        const red = Math.min(255, barHeight + 100);
-        const green = Math.min(255, 250 * (i / bufferLength));
-        const blue = 50;
-        ctx.fillStyle = `rgb(${{red}}, ${{green}}, ${{blue}})`;
-        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-        x += barWidth + 1;
-      }}
-    }}
+  function draw() {
+    requestAnimationFrame(draw);
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
 
-    audio.addEventListener('play', () => {{
-      if (!audioContext) {{
-        setupAudio();
-        draw();
-      }}
-      if (audioContext.state === 'suspended') {{
-        audioContext.resume();
-      }}
-    }});
-  </script>
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const barWidth = canvas.width / bufferLength;
+    let x = 0;
+
+    for (let i = 0; i < bufferLength; i++) {
+      const barHeight = dataArray[i] / 255 * canvas.height;
+      const red = Math.min(255, barHeight + 100);
+      const green = Math.min(255, 250 * (i / bufferLength));
+      const blue = 50;
+      ctx.fillStyle = `rgb(${red},${green},${blue})`;
+      ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+      x += barWidth + 1;
+    }
+  }
+
+  audio.addEventListener('play', () => {
+    if (!audioContext) {
+      setupAudio();
+      draw();
+    }
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+  });
+</script>
+
 </body>
 </html>'''
 
