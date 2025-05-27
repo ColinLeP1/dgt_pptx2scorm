@@ -147,7 +147,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   }}
 
   .plyr__caption {{
-    background-color: rgba(0, 0, 0, 0.75);
+    background-color: rgba(0, 0, 0);
     color: white;
     padding: 0.2em 0.4em;
     border-radius: 0.2em;
