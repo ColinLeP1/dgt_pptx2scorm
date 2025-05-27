@@ -300,7 +300,7 @@ window.addEventListener('resize', () => {{
 let posX = 0;
 const speed = 4;
 
-function drawK2000() {
+function drawK2000() {{
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
 
@@ -321,7 +321,7 @@ function drawK2000() {
   if (posX > width + 20) posX = -20;
 
   requestAnimationFrame(drawK2000);
-}
+}}
 
 drawK2000();
   </script>
