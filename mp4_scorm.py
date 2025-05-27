@@ -11,14 +11,13 @@ def srt_to_vtt(srt_path, vtt_path):
         lines = srt_file.readlines()
 
     with open(vtt_path, 'w', encoding='utf-8') as vtt_file:
-        vtt_file.write("WEBVTT\n\n")  # entête obligatoire VTT
-
+        vtt_file.write("WEBVTT\n\n")
         for line in lines:
             if '-->' in line:
                 line = line.replace(',', '.')
             vtt_file.write(line)
 
-# Fonction pour générer le fichier manifest selon la version SCORM
+# Fonction pour générer le fichier manifest
 def create_scorm_manifest(version, title, video_filename, subtitle_filenames):
     subtitle_entries = "".join([f'\n      <file href="{fn}"/>' for fn in subtitle_filenames]) if subtitle_filenames else ""
 
@@ -84,23 +83,21 @@ def create_scorm_manifest(version, title, video_filename, subtitle_filenames):
   </resources>
 </manifest>'''
 
-# Fonction principale de création du package SCORM
-def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+# Fonction principale
 
+def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
+    os.makedirs(output_dir, exist_ok=True)
     video_filename = os.path.basename(video_path)
     shutil.copy(video_path, os.path.join(output_dir, video_filename))
 
     subtitle_filenames = []
-    if subtitle_paths:
-        for path in subtitle_paths:
-            filename = os.path.basename(path)
-            subtitle_filenames.append(filename)
-            shutil.copy(path, os.path.join(output_dir, filename))
+    for path in subtitle_paths:
+        filename = os.path.basename(path)
+        subtitle_filenames.append(filename)
+        shutil.copy(path, os.path.join(output_dir, filename))
 
     track_elements = "\n    ".join([
-        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}" />' 
+        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}" />'
         for fn in subtitle_filenames
     ])
 
@@ -111,107 +108,43 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
   <title>{scorm_title}</title>
   <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <style>
-  body {{
-    font-family: Arial, sans-serif;
-    background-color: #222;
-    color: #eee;
-    padding: 20px;
-    text-align: center;
-  }}
-
-  .player-container {{
-    width: 80%;
-    max-width: 800px;
-    margin: 0 auto;
-  }}
-
-  video, .plyr {{
-    width: 100%;
-  }}
-
-  .plyr__captions {{
-    background-color: rgba(0, 0, 0, 0.7);
-    padding: 5px 10px;
-    border-radius: 5px;
-    z-index: 10;
-  }}
-
-  .plyr__caption {{
-    color: white;
-    background: transparent;
-    font-size: 1.2em;
-    line-height: 1.4;
-    white-space: pre-wrap;
-    display: inline-block;
-  }}
+    body {{ background-color: #111; color: white; font-family: sans-serif; text-align: center; padding: 20px; }}
+    .player-container {{ max-width: 720px; margin: auto; }}
+    .plyr__captions {{ background-color: rgba(0,0,0,0.7); padding: 0.2em 0.5em; border-radius: 0.3em; }}
   </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <p id="completion-info">Taux de complétion requis pour valider : <strong>{completion_rate}%</strong></p>
-  <p id="completion-message" style="color: #4caf50; font-weight: bold; display: none;">Vous avez atteint le seuil de complétion requis 🎉</p>
-
+  <p>Taux de complétion requis : {completion_rate}%</p>
   <div class="player-container">
-    <video id="player" controls crossorigin>
-      <source src="{video_filename}" type="video/mp4" />
+    <video id="player" controls crossorigin playsinline>
+      <source src="{video_filename}" type="video/mp4">
       {track_elements}
-      Votre navigateur ne supporte pas la vidéo.
     </video>
   </div>
-
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
     const completionRate = {completion_rate};
     const video = document.getElementById('player');
-    const completionMessage = document.getElementById('completion-message');
-    let completed = false;
-    let maxPlayed = 0;
+    const plyrPlayer = new Plyr('#player');
+    let completed = false, maxPlayed = 0;
 
-    function findAPI(win) {{
-      let attempts = 0;
-      while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {{
-        win = win.parent;
-      }}
-      return win.API_1484_11 || win.API || null;
-    }}
-
-    function setScormCompleted() {{
-      const api = findAPI(window);
-      if (!api) return;
-
-      try {{
-        if (api.SetValue) {{
-          api.SetValue("cmi.completion_status", "completed");
-          api.Commit("");
-        }} else if (api.LMSSetValue) {{
-          api.LMSSetValue("cmi.core.lesson_status", "completed");
-          api.LMSCommit("");
-        }}
-      }} catch (e) {{
-        console.error("Erreur SCORM:", e);
-      }}
-    }}
-
-    video.addEventListener('timeupdate', () => {{
+    video.addEventListener('timeupdate', () => {
       if (!video.duration) return;
-
-      if (video.currentTime > maxPlayed + 0.75) {{
-        video.currentTime = maxPlayed;
-      }} else {{
-        maxPlayed = Math.max(maxPlayed, video.currentTime);
-      }}
-
+      if (video.currentTime > maxPlayed + 0.75) video.currentTime = maxPlayed;
+      else maxPlayed = Math.max(maxPlayed, video.currentTime);
       const playedPercent = (video.currentTime / video.duration) * 100;
-      if (!completed && playedPercent >= completionRate) {{
+      if (!completed && playedPercent >= completionRate) {
         completed = true;
-        completionMessage.style.display = 'block';
-        setScormCompleted();
-      }}
-    }});
-
-    const plyrPlayer = new Plyr('#player', {{
-      captions: {{ active: true, update: true, language: 'auto' }},
-    }});
+        const api = window.API_1484_11 || window.API;
+        if (api) {
+          try {
+            if (api.SetValue) { api.SetValue("cmi.completion_status", "completed"); api.Commit(""); }
+            else if (api.LMSSetValue) { api.LMSSetValue("cmi.core.lesson_status", "completed"); api.LMSCommit(""); }
+          } catch(e) { console.error("Erreur SCORM:", e); }
+        }
+      }
+    });
   </script>
 </body>
 </html>'''
@@ -219,9 +152,70 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html_content)
 
-    manifest_xml = create_scorm_manifest(version, scorm_title, video_filename, subtitle_filenames)
+    manifest = create_scorm_manifest(version, scorm_title, video_filename, subtitle_filenames)
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
-        f.write(manifest_xml)
+        f.write(manifest)
 
-# L'interface Streamlit pour téléverser une vidéo et générer le SCORM serait ensuite construite comme précédemment
-# ... (le code d'interface utilisateur peut être adapté selon ce fichier)
+# --- Interface utilisateur Streamlit ---
+
+st.title("Convertisseur Vidéo MP4 → SCORM avec Sous-titres")
+
+uploaded_file = st.file_uploader("Vidéo MP4", type=["mp4"])
+add_subtitles = st.checkbox("Ajouter des sous-titres")
+
+languages = [(lang.alpha_2, lang.name) for lang in pycountry.languages if hasattr(lang, 'alpha_2')]
+languages = sorted(languages, key=lambda x: x[1])
+language_options = [f"{name} ({code})" for code, name in languages]
+code_map = {f"{name} ({code})": code for code, name in languages}
+
+selected_languages = []
+subtitle_files_dict = {}
+
+if add_subtitles:
+    selected_labels = st.multiselect("Langues des sous-titres :", options=language_options)
+    selected_languages = [code_map[label] for label in selected_labels]
+    for lang_code in selected_languages:
+        subtitle_file = st.file_uploader(f"Sous-titre pour {lang_code}", type=["srt", "vtt"], key=f"sub_{lang_code}")
+        if subtitle_file:
+            subtitle_files_dict[lang_code] = subtitle_file
+
+scorm_12 = st.checkbox("SCORM 1.2")
+scorm_2004 = st.checkbox("SCORM 2004")
+
+scorm_title = st.text_input("Titre SCORM :", value=uploaded_file.name.rsplit(".", 1)[0] if uploaded_file else "Mon Cours Vidéo SCORM")
+
+if uploaded_file:
+    temp_dir = f"temp_scorm_{uuid.uuid4()}"
+    os.makedirs(temp_dir, exist_ok=True)
+    video_path = os.path.join(temp_dir, uploaded_file.name)
+    with open(video_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+
+    subtitle_paths = []
+    for lang_code, file in subtitle_files_dict.items():
+        ext = os.path.splitext(file.name)[1].lower()
+        if ext == '.srt':
+            srt_path = os.path.join(temp_dir, f"sub_{lang_code}.srt")
+            vtt_path = os.path.join(temp_dir, f"sub_{lang_code}.vtt")
+            with open(srt_path, "wb") as f: f.write(file.getbuffer())
+            srt_to_vtt(srt_path, vtt_path)
+            subtitle_paths.append(vtt_path)
+        else:
+            path = os.path.join(temp_dir, f"sub_{lang_code}{ext}")
+            with open(path, "wb") as f: f.write(file.getbuffer())
+            subtitle_paths.append(path)
+
+    completion_rate = st.slider("Taux de complétion requis (%) :", 10, 100, 80, step=5)
+
+    if st.button("Créer le package SCORM"):
+        if not (scorm_12 or scorm_2004):
+            st.error("Choisissez une version SCORM.")
+        else:
+            version = "1.2" if scorm_12 else "2004"
+            output_dir = f"scorm_output_{uuid.uuid4()}"
+            create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_title, completion_rate)
+            shutil.make_archive(output_dir, 'zip', output_dir)
+            with open(f"{output_dir}.zip", "rb") as f:
+                st.download_button("Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
+            shutil.rmtree(temp_dir)
+            shutil.rmtree(output_dir)
