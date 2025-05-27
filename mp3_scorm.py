@@ -1,11 +1,7 @@
-import streamlit as st
 import os
-import zipfile
 import shutil
-import uuid
-import pycountry
+import zipfile
 
-# Fonction pour générer le fichier manifest selon la version SCORM
 def create_scorm_manifest(version, title, mp3_filename, subtitle_filenames):
     subtitle_entries = "".join([f"\n      <file href=\"{fn}\"/>" for fn in subtitle_filenames]) if subtitle_filenames else ""
 
@@ -71,12 +67,14 @@ def create_scorm_manifest(version, title, mp3_filename, subtitle_filenames):
   </resources>
 </manifest>'''
 
-# Fonction principale de création du package SCORM
-def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_title="Mon Cours Audio SCORM"):
+def create_scorm_package(mp3_path, subtitle_paths=None, output_dir="scorm_package", version="1.2", scorm_title=None):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     mp3_filename = os.path.basename(mp3_path)
+    if scorm_title is None:
+        scorm_title = os.path.splitext(mp3_filename)[0]  # par défaut : nom fichier audio sans extension
+
     shutil.copy(mp3_path, os.path.join(output_dir, mp3_filename))
 
     subtitle_filenames = []
@@ -86,65 +84,80 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
             subtitle_filenames.append(filename)
             shutil.copy(path, os.path.join(output_dir, filename))
 
-    track_elements = "\n    ".join([
-        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}" />' 
+    # Prépare les balises <track> pour sous-titres
+    # Utilise la dernière partie du nom de fichier comme code langue, ex : "fichier_fr.srt" → "fr"
+    track_elements = "\n      ".join([
+        f'<track kind="subtitles" src="{fn}" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}" />' 
         for fn in subtitle_filenames
     ])
 
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>{scorm_title}</title>
-  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-  <style>
-    body {{
-      font-family: Arial, sans-serif;
-      background-color: #222;
-      color: #eee;
-      padding: 20px;
-      text-align: center;
-    }}
-    h1 {{
-      margin-bottom: 20px;
-    }}
-    .plyr {{
-      max-width: 600px;
-      margin: 0 auto;
-    }}
-    .plyr--audio .plyr__controls {{
-      background: #333;
-    }}
-    .plyr__captions {{
-      color: white !important;
-      font-size: 16px;
-      text-shadow: 1px 1px 2px black;
-    }}
-    canvas {{
-      border: 1px solid #444;
-      background-color: #000;
-      width: 80%;
-      max-width: 600px;
-      height: 150px;
-      display: block;
-      margin: 20px auto 0;
-    }}
-  </style>
+<meta charset="UTF-8" />
+<title>{scorm_title}</title>
+<!-- Plyr CSS -->
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<style>
+  body {{
+    font-family: Arial, sans-serif;
+    background-color: #222;
+    color: #eee;
+    padding: 20px;
+    text-align: center;
+  }}
+  h1 {{
+    margin-bottom: 20px;
+  }}
+  #player-container {{
+    max-width: 600px;
+    margin: 0 auto;
+  }}
+  video.plyr {{
+    width: 100%;
+    max-width: 600px;
+    height: 100px; /* hauteur compacte */
+    background-color: black;
+  }}
+  .plyr__captions {{
+    color: white !important;
+    font-size: 14px !important;
+    text-shadow:
+      -1px -1px 0 #000,
+      1px -1px 0 #000,
+      -1px 1px 0 #000,
+      1px 1px 0 #000;
+  }}
+  #canvas {{
+    border: 1px solid #444;
+    background-color: #000;
+    width: 80%;
+    max-width: 600px;
+    height: 150px;
+    margin: 20px auto;
+    display: block;
+  }}
+</style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
-
-  <audio id="player" controls crossorigin>
-    <source src="{mp3_filename}" type="audio/mp3" />
-    {track_elements}
-  </audio>
+  <div id="player-container">
+    <video id="player" class="plyr" controls crossorigin>
+      <source src="{mp3_filename}" type="audio/mpeg" />
+      {track_elements}
+      Votre navigateur ne supporte pas la lecture vidéo.
+    </video>
+  </div>
 
   <canvas id="canvas"></canvas>
 
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
     const player = new Plyr('#player', {{
-      captions: {{ active: true, update: true, language: 'auto' }},
+      captions: {{ active: true, language: 'fr', update: true }},
+      controls: ['play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen', 'captions'],
+      settings: ['captions', 'quality', 'speed'],
+      autoplay: false,
     }});
 
     const audio = document.getElementById('player');
@@ -209,81 +222,4 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest_xml)
 
-# Streamlit Interface
-st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio et Sous-titres")
-
-uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
-add_subtitles = st.checkbox("Ajouter des sous-titres")
-
-languages = [(lang.alpha_2, lang.name) for lang in pycountry.languages if hasattr(lang, 'alpha_2')]
-languages = sorted(languages, key=lambda x: x[1])
-language_options = [f"{name} ({code})" for code, name in languages]
-code_map = {f"{name} ({code})": code for code, name in languages}
-
-selected_languages = []
-subtitle_files_dict = {}
-
-if add_subtitles:
-    st.markdown("### Sélection des langues pour les sous-titres")
-    selected_labels = st.multiselect(
-        "Choisissez les langues des sous-titres à importer :",
-        options=language_options,
-        default=[],
-        help="Tapez pour rechercher une langue"
-    )
-    selected_languages = [code_map[label] for label in selected_labels]
-
-    for lang_code in selected_languages:
-        subtitle_file = st.file_uploader(
-            f"Fichier de sous-titres pour {lang_code}",
-            type=["srt", "vtt"],
-            key=f"sub_{lang_code}"
-        )
-        if subtitle_file:
-            subtitle_files_dict[lang_code] = subtitle_file
-
-scorm_12 = st.checkbox("SCORM 1.2")
-scorm_2004 = st.checkbox("SCORM 2004")
-
-scorm_title = st.text_input("Titre du package SCORM :", value=uploaded_file.name.rsplit(".", 1)[0] if uploaded_file else "Mon Cours Audio SCORM")
-
-if uploaded_file:
-    temp_dir = f"temp_scorm_{uuid.uuid4()}"
-    os.makedirs(temp_dir, exist_ok=True)
-
-    mp3_path = os.path.join(temp_dir, uploaded_file.name)
-    with open(mp3_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-
-    subtitle_paths = []
-    for lang_code, file in subtitle_files_dict.items():
-        ext = os.path.splitext(file.name)[1]
-        filename = f"sub_{lang_code}{ext}"
-        path = os.path.join(temp_dir, filename)
-        with open(path, "wb") as f:
-            f.write(file.getbuffer())
-        subtitle_paths.append(path)
-
-    if st.button("Générer le package SCORM"):
-        if (scorm_12 and scorm_2004) or (not scorm_12 and not scorm_2004):
-            st.error("Veuillez cocher exactement une version SCORM : soit SCORM 1.2, soit SCORM 2004.")
-        else:
-            version = "1.2" if scorm_12 else "2004"
-            output_dir = os.path.join(temp_dir, "scorm_package")
-            create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_title)
-
-            zip_path = os.path.join(temp_dir, f"{scorm_title}.zip")
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for foldername, subfolders, filenames in os.walk(output_dir):
-                    for filename in filenames:
-                        filepath = os.path.join(foldername, filename)
-                        arcname = os.path.relpath(filepath, output_dir)
-                        zipf.write(filepath, arcname)
-
-            with open(zip_path, "rb") as f:
-                st.download_button(
-                    label="Télécharger le package SCORM",
-                    data=f,
-                    file_name=f"{scorm_title}.zip",
-                    mime="application/zip"
-                )
+    print(f"Package SCORM créé dans le dossier : {output_dir}")
