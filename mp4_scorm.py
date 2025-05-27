@@ -162,16 +162,16 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
 
   <div class="player-container">
     <video id="player" controls crossorigin>
-      <source src="{{mp4_filename}}" type="audio/mp4" />
+      <source src="{{mp4_filename}}" type="video/mp4" />
       {{track_elements}}
-      Your browser does not support the audio element.
+      Your browser does not support the video element.
     </video>
   </div>
 
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
     const completionRate = {{completion_rate}};
-    const audio = document.getElementById('player');
+    const video = document.getElementById('player');
     const completionMessage = document.getElementById('completion-message');
     let completed = false;
     let maxPlayed = 0;
@@ -204,16 +204,16 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
       }}
     }}
 
-    audio.addEventListener('timeupdate', () => {{
-      if (!audio.duration) return;
+    video.addEventListener('timeupdate', () => {{
+      if (!video.duration) return;
 
-      if (audio.currentTime > maxPlayed + 0.75) {{
-        audio.currentTime = maxPlayed;
+      if (video.currentTime > maxPlayed + 0.75) {{
+        video.currentTime = maxPlayed;
       }} else {{
-        maxPlayed = Math.max(maxPlayed, audio.currentTime);
+        maxPlayed = Math.max(maxPlayed, video.currentTime);
       }}
 
-      const playedPercent = (audio.currentTime / audio.duration) * 100;
+      const playedPercent = (video.currentTime / video.duration) * 100;
       if (!completed && playedPercent >= completionRate) {{
         completed = true;
         completionMessage.style.display = 'block';
