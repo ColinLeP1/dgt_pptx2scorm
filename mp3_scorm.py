@@ -146,7 +146,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     bottom: 10%;
     width: 100%;
     z-index: 10; /* au-dessus du canvas */
-    background: rgba(0, 0, 0, 0.7); /* fond noir semi-transparent */
+    background: rgba(0, 0, 0, 1) !important; /* fond noir semi-transparent */
     padding: 5px 10px;
     border-radius: 5px;
     font-size: 1.2em;
