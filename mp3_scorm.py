@@ -130,31 +130,30 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     width: 100%;
   }}
 
+  /* Nouveau style canvas centré et taille fixe */
   canvas {{
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100% !important;
-    height: 100% !important;
-    pointer-events: none;
-    z-index: 5;  /* plus bas que les sous-titres */
-    mix-blend-mode: screen;
+    display: block;
+    margin: 40px auto;
+    background-color: black;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 600px;
+    height: 50px;
+    position: relative;
+    z-index: 5;
   }}
 
   .plyr__captions {{
-    position: absolute;
-    bottom: 10%;
-    width: 100%;
+    position: relative;
     z-index: 10; /* au-dessus du canvas */
-    background: rgba(0, 0, 0, 0.7); /* fond noir semi-transparent */
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 1.2em;
-    line-height: 1.4;
   }}
 
   .plyr__caption {{
+    background-color: rgba(0, 0, 0);
     color: white;
+    padding: 0.2em 0.4em;
+    border-radius: 0.2em;
+    font-size: 1.2em;
   }}
 
   #completion-message {{
@@ -163,228 +162,178 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     color: #4caf50;
     display: none;
   }}
-  </style>
+</style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
   <p id="completion-info">Taux de complétion requis pour valider : <strong>{completion_rate}%</strong></p>
   <p id="completion-message">Vous avez atteint le seuil de complétion requis 🎉</p>
 
-  <div class="player-container">
-    <video id="player" controls crossorigin>
-      <source src="{mp3_filename}" type="audio/mp3" />
-      {track_elements}
-      Your browser does not support the audio element.
-    </video>
-    <canvas id="canvas"></canvas>
-  </div>
+<div class="player-container">
+  <video id="player" controls crossorigin>
+    <source src="{mp3_filename}" type="audio/mp3" />
+    {track_elements}
+    Your browser does not support the audio element.
+  </video>
+  <canvas id="canvas"></canvas>
+</div>
 
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+<script>
+  const completionRate = {completion_rate};
+  const audio = document.getElementById('player');
+  const completionMessage = document.getElementById('completion-message');
+  let completed = false;
+  let maxPlayed = 0;
 
-  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
-  <script>
-    const completionRate = {completion_rate};
-    const audio = document.getElementById('player');
-    const completionMessage = document.getElementById('completion-message');
-    let completed = false;
-    let maxPlayed = 0;
+  function findAPI(win) {{
+    let attempts = 0;
+    while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {{
+      win = win.parent;
+    }}
+    return win.API_1484_11 || win.API || null;
+  }}
 
-    function findAPI(win) {{
-      let attempts = 0;
-      while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {{
-        win = win.parent;
-      }}
-      return win.API_1484_11 || win.API || null;
+  function setScormCompleted() {{
+    const api = findAPI(window);
+    if (!api) {{
+      console.warn("SCORM API non trouvée.");
+      return;
     }}
 
-    function setScormCompleted() {{
-      const api = findAPI(window);
-      if (!api) {{
-        console.warn("SCORM API non trouvée.");
-        return;
+    try {{
+      if (api.SetValue) {{
+        api.SetValue("cmi.completion_status", "completed");
+        api.Commit("");
+      }} else if (api.LMSSetValue) {{
+        api.LMSSetValue("cmi.core.lesson_status", "completed");
+        api.LMSCommit("");
       }}
+    }} catch (e) {{
+      console.error("Erreur SCORM:", e);
+    }}
+  }}
 
-      try {{
-        if (api.SetValue) {{
-          api.SetValue("cmi.completion_status", "completed");
-          api.Commit("");
-        }} else if (api.LMSSetValue) {{
-          api.LMSSetValue("cmi.core.lesson_status", "completed");
-          api.LMSCommit("");
-        }}
-      }} catch (e) {{
-        console.error("Erreur SCORM:", e);
-      }}
+  audio.addEventListener('timeupdate', () => {{
+    if (!audio.duration) return;
+
+    if (audio.currentTime > maxPlayed + 0.75) {{
+      audio.currentTime = maxPlayed;
+    }} else {{
+      maxPlayed = Math.max(maxPlayed, audio.currentTime);
     }}
 
-    audio.addEventListener('timeupdate', () => {{
-      if (!audio.duration) return;
+    const playedPercent = (audio.currentTime / audio.duration) * 100;
+    if (!completed && playedPercent >= completionRate) {{
+      completed = true;
+      completionMessage.style.display = 'block';
+      setScormCompleted();
+    }}
+  }});
 
-      if (audio.currentTime > maxPlayed + 0.75) {{
-        audio.currentTime = maxPlayed;
-      }} else {{
-        maxPlayed = Math.max(maxPlayed, audio.currentTime);
-      }}
+  const plyrPlayer = new Plyr('#player', {{
+    captions: {{ active: true, update: true, language: 'auto' }},
+  }});
 
-      const playedPercent = (audio.currentTime / audio.duration) * 100;
-      if (!completed && playedPercent >= completionRate) {{
-        completed = true;
-        completionMessage.style.display = 'block';
-        setScormCompleted();
-      }}
-    }});
+  // --- Animation K2000 sur canvas ---
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
 
-    const plyrPlayer = new Plyr('#player', {{
-      captions: {{ active: true, update: true, language: 'auto' }},
-    }});
-
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
+  function resizeCanvas() {{
     canvas.width = canvas.clientWidth * window.devicePixelRatio;
     canvas.height = canvas.clientHeight * window.devicePixelRatio;
     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  }}
+  resizeCanvas();
+  window.addEventListener('resize', () => {{
+    resizeCanvas();
+  }});
 
-    let audioContext;
-    let analyser;
-    let source;
+  let posX = 0;
+  const speed = 4;
 
-    function setupAudio() {{
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      source = audioContext.createMediaElementSource(audio);
-      analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-      analyser.connect(audioContext.destination);
-    }}
+  function drawK2000() {{
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
 
-    function draw() {{
-      requestAnimationFrame(draw);
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      analyser.getByteFrequencyData(dataArray);
+    ctx.clearRect(0, 0, width, height);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const gradient = ctx.createLinearGradient(posX - 100, 0, posX + 100, 0);
+    gradient.addColorStop(0, 'rgba(255, 0, 0, 0)');
+    gradient.addColorStop(0.5, 'rgba(255, 0, 0, 1)');
+    gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
 
-      const barWidth = canvas.width / bufferLength;
-      let x = 0;
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, height / 3, width, height / 3);
 
-      for (let i = 0; i < bufferLength; i++) {{
-        const barHeight = dataArray[i] / 255 * canvas.height;
-        const red = Math.min(255, barHeight + 100);
-        const green = Math.min(255, 250 * (i / bufferLength));
-        const blue = 50;
-        ctx.fillStyle = `rgb(${{red}},${{green}},${{blue}})`;
-        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-        x += barWidth + 1;
-      }}
-    }}
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+    ctx.fillRect(posX, height / 4, 20, height / 2);
 
-    audio.addEventListener('play', () => {{
-      if (!audioContext) {{
-        setupAudio();
-        draw();
-      }}
-      if (audioContext.state === 'suspended') {{
-        audioContext.resume();
-      }}
-    }});
-  </script>
+    posX += speed;
+    if (posX > width + 20) posX = -20;
+
+    requestAnimationFrame(drawK2000);
+  }}
+
+  drawK2000();
+</script>
 </body>
-</html>'''
+</html>
+'''
 
-    with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
+    with open(os.path.join(output_dir, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    manifest_xml = create_scorm_manifest(version, scorm_title, mp3_filename, subtitle_filenames)
-    with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
-        f.write(manifest_xml)
+    # Créer un ZIP du dossier output_dir
+    zip_filename = os.path.join(output_dir, "scorm_package.zip")
+    with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(output_dir):
+            for file in files:
+                if file != "scorm_package.zip":
+                    full_path = os.path.join(root, file)
+                    arcname = os.path.relpath(full_path, output_dir)
+                    zipf.write(full_path, arcname)
+    return zip_filename
 
-# Interface utilisateur Streamlit
-st.title("Convertisseur MP3 → SCORM avec Spectre Audio et Sous-titres")
 
-uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
-add_subtitles = st.checkbox("Ajouter des sous-titres")
+# --- Streamlit UI ---
 
-languages = [(lang.alpha_2, lang.name) for lang in pycountry.languages if hasattr(lang, 'alpha_2')]
-languages = sorted(languages, key=lambda x: x[1])
-language_options = [f"{name} ({code})" for code, name in languages]
-code_map = {f"{name} ({code})": code for code, name in languages}
+st.title("Créateur de package SCORM audio")
 
-selected_languages = []
-subtitle_files_dict = {}
+uploaded_mp3 = st.file_uploader("Chargez un fichier audio MP3", type=["mp3"])
+uploaded_subs = st.file_uploader("Chargez des fichiers de sous-titres (optionnel)", type=["vtt", "srt"], accept_multiple_files=True)
+scorm_version = st.selectbox("Version SCORM", ["1.2", "2004 3rd Edition"])
+completion_pct = st.slider("Taux de complétion (%) requis", min_value=50, max_value=100, value=80, step=5)
+scorm_title = st.text_input("Titre du package SCORM", value="Mon Cours Audio SCORM")
 
-if add_subtitles:
-    st.markdown("### Sélection des langues pour les sous-titres")
-    selected_labels = st.multiselect(
-        "Choisissez les langues des sous-titres à importer :",
-        options=language_options,
-        default=[],
-        help="Tapez pour rechercher une langue"
-    )
-    selected_languages = [code_map[label] for label in selected_labels]
-
-    for lang_code in selected_languages:
-        subtitle_file = st.file_uploader(
-            f"Fichier de sous-titres pour {lang_code}",
-            type=["srt", "vtt"],
-            key=f"sub_{lang_code}"
-        )
-        if subtitle_file:
-            subtitle_files_dict[lang_code] = subtitle_file
-
-scorm_12 = st.checkbox("SCORM 1.2")
-scorm_2004 = st.checkbox("SCORM 2004")
-
-scorm_title = st.text_input("Titre du package SCORM :", value=uploaded_file.name.rsplit(".", 1)[0] if uploaded_file else "Mon Cours Audio SCORM")
-
-if uploaded_file:
-    temp_dir = f"temp_scorm_{uuid.uuid4()}"
-    os.makedirs(temp_dir, exist_ok=True)
-
-    mp3_path = os.path.join(temp_dir, uploaded_file.name)
+if uploaded_mp3:
+    # Sauvegarde fichiers temporaire
+    tmp_dir = os.path.join("tmp", str(uuid.uuid4()))
+    os.makedirs(tmp_dir, exist_ok=True)
+    mp3_path = os.path.join(tmp_dir, uploaded_mp3.name)
     with open(mp3_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+        f.write(uploaded_mp3.getbuffer())
 
     subtitle_paths = []
-    for lang_code, file in subtitle_files_dict.items():
-        ext = os.path.splitext(file.name)[1].lower()
-        if ext == '.srt':
-            # Sauvegarder le srt
-            srt_filename = f"sub_{lang_code}.srt"
-            srt_path = os.path.join(temp_dir, srt_filename)
-            with open(srt_path, "wb") as f:
-                f.write(file.getbuffer())
-            # Convertir en vtt
-            vtt_filename = f"sub_{lang_code}.vtt"
-            vtt_path = os.path.join(temp_dir, vtt_filename)
-            srt_to_vtt(srt_path, vtt_path)
-            subtitle_paths.append(vtt_path)  # On utilise le .vtt converti
-        else:
-            # Pas besoin de conversion, on copie directement
-            filename = f"sub_{lang_code}{ext}"
-            path = os.path.join(temp_dir, filename)
-            with open(path, "wb") as f:
-                f.write(file.getbuffer())
-            subtitle_paths.append(path)
-    completion_rate = st.slider(
-        "Taux de complétion requis (%) pour valider l'audio :",
-        min_value=10,
-        max_value=100,
-        value=80,
-        step=5,
-        help="L'audio doit être écouté au moins à ce pourcentage pour être considéré comme complété."
-    )
-    
-    if st.button("Créer le package SCORM"):
-        if not (scorm_12 or scorm_2004):
-            st.error("Veuillez sélectionner au moins une version SCORM (1.2 ou 2004).")
-        else:
-            selected_version = "1.2" if scorm_12 else "2004"
-            output_dir = f"scorm_output_{uuid.uuid4()}"
-            create_scorm_package(mp3_path, subtitle_paths, output_dir, selected_version, scorm_title, completion_rate)
-            shutil.make_archive(output_dir, 'zip', output_dir)
-            with open(f"{output_dir}.zip", "rb") as f:
-                st.download_button("Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
+    if uploaded_subs:
+        for sub in uploaded_subs:
+            sub_path = os.path.join(tmp_dir, sub.name)
+            # Si srt, convertir en vtt
+            if sub.name.endswith(".srt"):
+                vtt_path = sub_path[:-4] + ".vtt"
+                with open(sub_path, "wb") as f:
+                    f.write(sub.getbuffer())
+                srt_to_vtt(sub_path, vtt_path)
+                subtitle_paths.append(vtt_path)
+            else:
+                with open(sub_path, "wb") as f:
+                    f.write(sub.getbuffer())
+                subtitle_paths.append(sub_path)
 
-            # Nettoyage
-            shutil.rmtree(temp_dir)
-            shutil.rmtree(output_dir)
+    if st.button("Créer le package SCORM"):
+        zip_file = create_scorm_package(mp3_path, subtitle_paths, tmp_dir, scorm_version, scorm_title, completion_pct)
+        with open(zip_file, "rb") as f:
+            st.download_button("Télécharger le package SCORM", data=f, file_name="scorm_package.zip", mime="application/zip")
+
+        # Nettoyer tmp? (optionnel)
+        # shutil.rmtree(tmp_dir)
