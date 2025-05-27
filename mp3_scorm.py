@@ -282,7 +282,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     const red = 50;
     const green = 100 * (i / bufferLength);
     const blue = barHeight / 2;
-    ctx.fillStyle = `rgba(${red},${green},${blue}, 0.6)`;  // avec transparence
+    ctx.fillStyle = `rgba(${{red}},${{green}},${{blue}}, 0.6)`;  // avec transparence
     ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
     x += barWidth + 1;
   }}
