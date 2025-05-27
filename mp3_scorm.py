@@ -118,6 +118,13 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     padding: 20px;
     text-align: center;
   }}
+  .plyr__caption {{
+  background-color: rgba(0, 0, 0, 0.75);
+  color: white;
+  padding: 0.2em 0.4em;
+  border-radius: 0.2em;
+  font-size: 1.2em;
+  }}
 
   .player-container {{
     position: relative;
