@@ -71,6 +71,7 @@ def create_scorm_manifest(version, title, mp3_filename, subtitle_filenames):
   </resources>
 </manifest>'''
 
+# Fonction principale de création du package SCORM
 def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_title="Mon Cours Audio SCORM"):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -95,6 +96,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
 <head>
   <meta charset="UTF-8" />
   <title>{scorm_title}</title>
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <style>
     body {{
       font-family: Arial, sans-serif;
@@ -106,12 +108,17 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     h1 {{
       margin-bottom: 20px;
     }}
-    #audioPlayer {{
-      width: 300px;
-      height: 40px;
-      margin-bottom: 10px;
-      background-color: #333;
-      border-radius: 5px;
+    .plyr {{
+      max-width: 600px;
+      margin: 0 auto;
+    }}
+    .plyr--audio .plyr__controls {{
+      background: #333;
+    }}
+    .plyr__captions {{
+      color: white !important;
+      font-size: 16px;
+      text-shadow: 1px 1px 2px black;
     }}
     canvas {{
       border: 1px solid #444;
@@ -120,34 +127,27 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
       max-width: 600px;
       height: 150px;
       display: block;
-      margin: 0 auto;
-    }}
-    #subtitle {{
-      color: white;
-      font-size: 18px;
-      margin-top: 15px;
-      white-space: pre-wrap;
-      background-color: rgba(0, 0, 0, 0.6);
-      padding: 10px;
-      border-radius: 5px;
-      max-width: 80%;
-      margin-left: auto;
-      margin-right: auto;
+      margin: 20px auto 0;
     }}
   </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <audio id="audioPlayer" controls>
-    <source src="{mp3_filename}" type="audio/mpeg">
-    {track_elements}
-    Votre navigateur ne supporte pas la lecture audio.
-  </audio>
-  <canvas id="canvas"></canvas>
-  <div id="subtitle"></div>
 
+  <audio id="player" controls crossorigin>
+    <source src="{mp3_filename}" type="audio/mp3" />
+    {track_elements}
+  </audio>
+
+  <canvas id="canvas"></canvas>
+
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
-    const audio = document.getElementById('audioPlayer');
+    const player = new Plyr('#player', {{
+      captions: {{ active: true, update: true, language: 'auto' }},
+    }});
+
+    const audio = document.getElementById('player');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = canvas.clientWidth * window.devicePixelRatio;
@@ -189,18 +189,10 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
       }}
     }}
 
-    const subtitleDiv = document.getElementById('subtitle');
-
-    function animate() {{
-      if (!audioContext) return;
-      draw();
-      requestAnimationFrame(animate);
-    }}
-
     audio.addEventListener('play', () => {{
       if (!audioContext) {{
         setupAudio();
-        animate();
+        draw();
       }}
       if (audioContext.state === 'suspended') {{
         audioContext.resume();
@@ -217,21 +209,14 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest_xml)
 
-
-
-# Interface Streamlit
+# Streamlit Interface
 st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio et Sous-titres")
 
 uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
 add_subtitles = st.checkbox("Ajouter des sous-titres")
 
-# Récupération des langues via pycountry (avec code alpha_2)
-languages = []
-for lang in pycountry.languages:
-    if hasattr(lang, 'alpha_2'):
-        languages.append((lang.alpha_2, lang.name))
+languages = [(lang.alpha_2, lang.name) for lang in pycountry.languages if hasattr(lang, 'alpha_2')]
 languages = sorted(languages, key=lambda x: x[1])
-
 language_options = [f"{name} ({code})" for code, name in languages]
 code_map = {f"{name} ({code})": code for code, name in languages}
 
@@ -259,21 +244,8 @@ if add_subtitles:
 
 scorm_12 = st.checkbox("SCORM 1.2")
 scorm_2004 = st.checkbox("SCORM 2004")
-default_title = "Mon Cours Audio SCORM"
-if uploaded_file:
-    default_title = os.path.splitext(uploaded_file.name)[0]
 
-# Initialisation du titre par défaut (nom du MP3 sans extension)
-if uploaded_file:
-    default_title = os.path.splitext(uploaded_file.name)[0]
-else:
-    default_title = "Mon Cours Audio SCORM"
-
-scorm_title = st.text_input(
-    "Titre du package SCORM (nom du fichier ZIP) :",
-    value=default_title,
-    help="Vous pouvez modifier le nom du package à votre guise"
-)
+scorm_title = st.text_input("Titre du package SCORM :", value=uploaded_file.name.rsplit(".", 1)[0] if uploaded_file else "Mon Cours Audio SCORM")
 
 if uploaded_file:
     temp_dir = f"temp_scorm_{uuid.uuid4()}"
