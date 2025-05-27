@@ -131,29 +131,31 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   }}
 
   canvas {{
-  display: block;
-  margin: 40px auto;
-  background-color: black;
-  border-radius: 10px;
-  width: 80%;
-  max-width: 600px;
-  height: 50px;
-  position: relative;
-  z-index: 5;
-}}
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    pointer-events: none;
+    z-index: 5;  /* plus bas que les sous-titres */
+    mix-blend-mode: screen;
+  }}
 
-.plyr__captions {{
-  position: relative;
-  z-index: 10; /* au-dessus du canvas */
-}}
+  .plyr__captions {{
+    position: absolute;
+    bottom: 10%;
+    width: 100%;
+    z-index: 10; /* au-dessus du canvas */
+    background: rgba(0, 0, 0, 0.7); /* fond noir semi-transparent */
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 1.2em;
+    line-height: 1.4;
+  }}
 
-.plyr__caption {{
-  background-color: rgba(0, 0, 0);
-  color: white;
-  padding: 0.2em 0.4em;
-  border-radius: 0.2em;
-  font-size: 1.2em;
-}}
+  .plyr__caption {{
+    color: white;
+  }}
 
   #completion-message {{
     margin-top: 20px;
@@ -235,6 +237,8 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
       captions: {{ active: true, update: true, language: 'auto' }},
     }});
 
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
     canvas.width = canvas.clientWidth * window.devicePixelRatio;
     canvas.height = canvas.clientHeight * window.devicePixelRatio;
     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
@@ -283,47 +287,6 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
         audioContext.resume();
       }}
     }});
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-
-function resizeCanvas() {{
-  canvas.width = canvas.clientWidth * window.devicePixelRatio;
-  canvas.height = canvas.clientHeight * window.devicePixelRatio;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-}};
-resizeCanvas();
-window.addEventListener('resize', () => {{
-  resizeCanvas();
-}});
-
-let posX = 0;
-const speed = 4;
-
-function drawK2000() {{
-  const width = canvas.clientWidth;
-  const height = canvas.clientHeight;
-
-  ctx.clearRect(0, 0, width, height);
-
-  const gradient = ctx.createLinearGradient(posX - 100, 0, posX + 100, 0);
-  gradient.addColorStop(0, 'rgba(255, 0, 0, 0)');
-  gradient.addColorStop(0.5, 'rgba(255, 0, 0, 1)');
-  gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
-
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, height / 3, width, height / 3);
-
-  ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
-  ctx.fillRect(posX, height / 4, 20, height / 2);
-
-  posX += speed;
-  if (posX > width + 20) posX = -20;
-
-  requestAnimationFrame(drawK2000);
-}}
-
-drawK2000();
   </script>
 </body>
 </html>'''
