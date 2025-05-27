@@ -98,26 +98,26 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   <title>{scorm_title}</title>
   <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <style>
-  body {
+  body {{
     font-family: Arial, sans-serif;
     background-color: #222;
     color: #eee;
     padding: 20px;
     text-align: center;
-  }
+  }}
 
-  .player-container {
+  .player-container {{
     position: relative;
     width: 80%;
     max-width: 600px;
     margin: 0 auto;
-  }
+  }}
 
-  video, .plyr {
+  video, .plyr {{
     width: 100%;
-  }
+  }}
 
-  canvas {
+  canvas {{
     position: absolute;
     top: 0;
     left: 0;
@@ -126,14 +126,14 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     pointer-events: none;
     z-index: 10;
     mix-blend-mode: screen; /* Optionnel : pour mieux fondre le spectre audio avec la vidéo */
-  }
+  }}
 
-  #completion-message {
+  #completion-message {{
     margin-top: 20px;
     font-weight: bold;
     color: #4caf50;
     display: none;
-  }
+  }}
 </style>
 
 </head>
