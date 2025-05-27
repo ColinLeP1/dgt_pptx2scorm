@@ -118,13 +118,6 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     padding: 20px;
     text-align: center;
   }}
-  .plyr__caption {{
-  background-color: rgba(0, 0, 0, 0.75);
-  color: white;
-  padding: 0.2em 0.4em;
-  border-radius: 0.2em;
-  font-size: 1.2em;
-  }}
 
   .player-container {{
     position: relative;
@@ -145,7 +138,16 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     height: 100% !important;
     pointer-events: none;
     z-index: 10;
-    mix-blend-mode: screen; /* Optionnel : pour mieux fondre le spectre audio avec la vidéo */
+    mix-blend-mode: screen;
+  }}
+
+  /* Sous-titres avec fond noir semi-transparent */
+  .plyr__caption {{
+    background-color: rgba(0, 0, 0, 0.75);
+    color: white;
+    padding: 0.2em 0.4em;
+    border-radius: 0.2em;
+    font-size: 1.2em;
   }}
 
   #completion-message {{
@@ -155,6 +157,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     display: none;
   }}
 </style>
+
 
 </head>
 <body>
