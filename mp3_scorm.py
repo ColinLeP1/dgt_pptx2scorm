@@ -250,7 +250,11 @@ if add_subtitles:
 
 scorm_12 = st.checkbox("SCORM 1.2")
 scorm_2004 = st.checkbox("SCORM 2004")
-scorm_title = st.text_input("Titre du package SCORM (nom du fichier ZIP) :", value="Mon Cours Audio SCORM")
+default_title = "Mon Cours Audio SCORM"
+if uploaded_file:
+    default_title = os.path.splitext(uploaded_file.name)[0]
+
+scorm_title = st.text_input("Titre du package SCORM (nom du fichier ZIP) :", value=default_title)
 
 if uploaded_file:
     temp_dir = f"temp_scorm_{uuid.uuid4()}"
