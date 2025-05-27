@@ -363,7 +363,15 @@ if uploaded_file:
             with open(path, "wb") as f:
                 f.write(file.getbuffer())
             subtitle_paths.append(path)
-
+    completion_rate = st.slider(
+        "Taux de complétion requis (%) pour valider l'audio :",
+        min_value=10,
+        max_value=100,
+        value=80,
+        step=5,
+        help="L'audio doit être écouté au moins à ce pourcentage pour être considéré comme complété."
+    )
+    
     if st.button("Créer le package SCORM"):
         if not (scorm_12 or scorm_2004):
             st.error("Veuillez sélectionner au moins une version SCORM (1.2 ou 2004).")
