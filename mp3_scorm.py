@@ -293,9 +293,9 @@ function resizeCanvas() {{
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 }};
 resizeCanvas();
-window.addEventListener('resize', () => {
+window.addEventListener('resize', () => {{
   resizeCanvas();
-});
+}});
 
 let posX = 0;
 const speed = 4;
