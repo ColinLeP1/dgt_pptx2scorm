@@ -137,18 +137,21 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     width: 100% !important;
     height: 100% !important;
     pointer-events: none;
-    z-index: 10;
+    z-index: 5; /* plus bas que les sous-titres */
     mix-blend-mode: screen;
   }}
 
-  /* Sous-titres avec fond noir semi-transparent */
+  .plyr__captions {{
+    position: relative;
+    z-index: 20; /* au-dessus du canvas */
+  }}
+
   .plyr__caption {{
     background-color: rgba(0, 0, 0, 0.75);
     color: white;
     padding: 0.2em 0.4em;
     border-radius: 0.2em;
     font-size: 1.2em;
-    z-index: 20;
   }}
 
   #completion-message {{
