@@ -137,13 +137,13 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     width: 100% !important;
     height: 100% !important;
     pointer-events: none;
-    z-index: 5; /* plus bas que les sous-titres */
+    z-index: 20; /* plus bas que les sous-titres */
     mix-blend-mode: screen;
   }}
 
   .plyr__captions {{
     position: relative;
-    z-index: 20; /* au-dessus du canvas */
+    z-index: 0; /* au-dessus du canvas */
   }}
 
   .plyr__caption {{
@@ -378,7 +378,7 @@ if uploaded_file:
         else:
             selected_version = "1.2" if scorm_12 else "2004"
             output_dir = f"scorm_output_{uuid.uuid4()}"
-            create_scorm_package(mp3_path, subtitle_paths, output_dir, selected_version, scorm_title)
+            create_scorm_package(mp3_path, subtitle_paths, output_dir, selected_version, scorm_title, completion_rate)
             shutil.make_archive(output_dir, 'zip', output_dir)
             with open(f"{output_dir}.zip", "rb") as f:
                 st.download_button("Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
