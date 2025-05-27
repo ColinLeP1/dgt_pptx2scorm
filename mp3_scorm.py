@@ -85,9 +85,8 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
             subtitle_filenames.append(filename)
             shutil.copy(path, os.path.join(output_dir, filename))
 
-    # Génération des balises <track>
     track_elements = "\n    ".join([
-        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}" default />'
+        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}" />' 
         for fn in subtitle_filenames
     ])
 
@@ -96,7 +95,6 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
 <head>
   <meta charset="UTF-8" />
   <title>{scorm_title}</title>
-  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <style>
     body {{
       font-family: Arial, sans-serif;
@@ -108,13 +106,12 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     h1 {{
       margin-bottom: 20px;
     }}
-    #player {{
-      width: 100%;
-      max-width: 600px;
-      margin: auto;
-    }}
-    video {{
-      background: #000;
+    #audioPlayer {{
+      width: 300px;
+      height: 40px;
+      margin-bottom: 10px;
+      background-color: #333;
+      border-radius: 5px;
     }}
     canvas {{
       border: 1px solid #444;
@@ -123,25 +120,34 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
       max-width: 600px;
       height: 150px;
       display: block;
-      margin: 20px auto;
+      margin: 0 auto;
+    }}
+    #subtitle {{
+      color: white;
+      font-size: 18px;
+      margin-top: 15px;
+      white-space: pre-wrap;
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      border-radius: 5px;
+      max-width: 80%;
+      margin-left: auto;
+      margin-right: auto;
     }}
   </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <video id="player" controls crossorigin>
-    <source src="{mp3_filename}" type="audio/mpeg" />
+  <audio id="audioPlayer" controls>
+    <source src="{mp3_filename}" type="audio/mpeg">
     {track_elements}
-  </video>
+    Votre navigateur ne supporte pas la lecture audio.
+  </audio>
   <canvas id="canvas"></canvas>
+  <div id="subtitle"></div>
 
-  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
-    const player = new Plyr('#player', {{
-      captions: {{ active: true, update: true }},
-    }});
-
-    const video = document.getElementById('player');
+    const audio = document.getElementById('audioPlayer');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = canvas.clientWidth * window.devicePixelRatio;
@@ -154,7 +160,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
 
     function setupAudio() {{
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      source = audioContext.createMediaElementSource(video);
+      source = audioContext.createMediaElementSource(audio);
       analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
@@ -183,13 +189,15 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
       }}
     }}
 
+    const subtitleDiv = document.getElementById('subtitle');
+
     function animate() {{
       if (!audioContext) return;
       draw();
       requestAnimationFrame(animate);
     }}
 
-    video.addEventListener('play', () => {{
+    audio.addEventListener('play', () => {{
       if (!audioContext) {{
         setupAudio();
         animate();
@@ -208,6 +216,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     manifest_xml = create_scorm_manifest(version, scorm_title, mp3_filename, subtitle_filenames)
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest_xml)
+
 
 
 # Interface Streamlit
@@ -254,7 +263,17 @@ default_title = "Mon Cours Audio SCORM"
 if uploaded_file:
     default_title = os.path.splitext(uploaded_file.name)[0]
 
-scorm_title = st.text_input("Titre du package SCORM (nom du fichier ZIP) :", value=default_title)
+# Initialisation du titre par défaut (nom du MP3 sans extension)
+if uploaded_file:
+    default_title = os.path.splitext(uploaded_file.name)[0]
+else:
+    default_title = "Mon Cours Audio SCORM"
+
+scorm_title = st.text_input(
+    "Titre du package SCORM (nom du fichier ZIP) :",
+    value=default_title,
+    help="Vous pouvez modifier le nom du package à votre guise"
+)
 
 if uploaded_file:
     temp_dir = f"temp_scorm_{uuid.uuid4()}"
