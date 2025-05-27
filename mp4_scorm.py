@@ -162,7 +162,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
 
   <div class="player-container">
     <video id="player" controls crossorigin>
-      <source src="{{mp4_filename}}" type="video/mp4" />
+      <source src="{video_filename}" type="video/mp4" />
       {{track_elements}}
       Your browser does not support the video element.
     </video>
