@@ -7,7 +7,7 @@ import pycountry
 
 # Fonction pour générer le fichier manifest selon la version SCORM
 def create_scorm_manifest(version, title, mp3_filename, subtitle_filenames):
-    subtitle_entries = "".join([f"\n      <file href=\"{fn}\"/>" for fn in subtitle_filenames]) if subtitle_filenames else ""
+    subtitle_entries = "".join([f'\n      <file href="{fn}"/>' for fn in subtitle_filenames]) if subtitle_filenames else ""
 
     if version == "1.2":
         return f'''<?xml version="1.0" encoding="UTF-8"?>
@@ -139,7 +139,6 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
 </head>
 <body>
   <h1>{scorm_title}</h1>
-
   <p id="completion-info">Taux de complétion requis pour valider : <strong>{completion_rate}%</strong></p>
   <p id="completion-message">Vous avez atteint le seuil de complétion requis 🎉</p>
 
@@ -152,121 +151,115 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   <canvas id="canvas"></canvas>
 
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
-<script>
-  const completionRate = {completion_rate};
-  const audio = document.getElementById('player');
-  const completionMessage = document.getElementById('completion-message');
-  let completed = false;
-  let maxPlayed = 0;
+  <script>
+    const completionRate = {completion_rate};
+    const audio = document.getElementById('player');
+    const completionMessage = document.getElementById('completion-message');
+    let completed = false;
+    let maxPlayed = 0;
 
-  // Détection et utilisation de l'API SCORM
-  function findAPI(win) {
-    let attempts = 0;
-    while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {
-      win = win.parent;
-    }
-    return win.API_1484_11 || win.API || null;
-  }
+    function findAPI(win) {{
+      let attempts = 0;
+      while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {{
+        win = win.parent;
+      }}
+      return win.API_1484_11 || win.API || null;
+    }}
 
-  function setScormCompleted() {
-    const api = findAPI(window);
-    if (!api) {
-      console.warn("SCORM API non trouvée.");
-      return;
-    }
+    function setScormCompleted() {{
+      const api = findAPI(window);
+      if (!api) {{
+        console.warn("SCORM API non trouvée.");
+        return;
+      }}
 
-    try {
-      // SCORM 2004
-      if (api.SetValue) {
-        api.SetValue("cmi.completion_status", "completed");
-        api.Commit("");
-      } else if (api.LMSSetValue) {
-        // SCORM 1.2
-        api.LMSSetValue("cmi.core.lesson_status", "completed");
-        api.LMSCommit("");
-      }
-    } catch (e) {
-      console.error("Erreur SCORM:", e);
-    }
-  }
+      try {{
+        if (api.SetValue) {{
+          api.SetValue("cmi.completion_status", "completed");
+          api.Commit("");
+        }} else if (api.LMSSetValue) {{
+          api.LMSSetValue("cmi.core.lesson_status", "completed");
+          api.LMSCommit("");
+        }}
+      }} catch (e) {{
+        console.error("Erreur SCORM:", e);
+      }}
+    }}
 
-  audio.addEventListener('timeupdate', () => {
-    if (!audio.duration) return;
+    audio.addEventListener('timeupdate', () => {{
+      if (!audio.duration) return;
 
-    if (audio.currentTime > maxPlayed + 0.75) {
-      audio.currentTime = maxPlayed;
-    } else {
-      maxPlayed = Math.max(maxPlayed, audio.currentTime);
-    }
+      if (audio.currentTime > maxPlayed + 0.75) {{
+        audio.currentTime = maxPlayed;
+      }} else {{
+        maxPlayed = Math.max(maxPlayed, audio.currentTime);
+      }}
 
-    const playedPercent = (audio.currentTime / audio.duration) * 100;
-    if (!completed && playedPercent >= completionRate) {
-      completed = true;
-      completionMessage.style.display = 'block';
-      setScormCompleted();
-    }
-  });
+      const playedPercent = (audio.currentTime / audio.duration) * 100;
+      if (!completed && playedPercent >= completionRate) {{
+        completed = true;
+        completionMessage.style.display = 'block';
+        setScormCompleted();
+      }}
+    }});
 
-  const plyrPlayer = new Plyr('#player', {
-    captions: { active: true, update: true, language: 'auto' },
-  });
+    const plyrPlayer = new Plyr('#player', {{
+      captions: {{ active: true, update: true, language: 'auto' }},
+    }});
 
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = canvas.clientWidth * window.devicePixelRatio;
-  canvas.height = canvas.clientHeight * window.devicePixelRatio;
-  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.clientWidth * window.devicePixelRatio;
+    canvas.height = canvas.clientHeight * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-  let audioContext;
-  let analyser;
-  let source;
+    let audioContext;
+    let analyser;
+    let source;
 
-  function setupAudio() {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    source = audioContext.createMediaElementSource(audio);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-    analyser.connect(audioContext.destination);
-  }
+    function setupAudio() {{
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      source = audioContext.createMediaElementSource(audio);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
+    }}
 
-  function draw() {
-    requestAnimationFrame(draw);
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    analyser.getByteFrequencyData(dataArray);
+    function draw() {{
+      requestAnimationFrame(draw);
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteFrequencyData(dataArray);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const barWidth = canvas.width / bufferLength;
-    let x = 0;
+      const barWidth = canvas.width / bufferLength;
+      let x = 0;
 
-    for (let i = 0; i < bufferLength; i++) {
-      const barHeight = dataArray[i] / 255 * canvas.height;
-      const red = Math.min(255, barHeight + 100);
-      const green = Math.min(255, 250 * (i / bufferLength));
-      const blue = 50;
-      ctx.fillStyle = `rgb(${red},${green},${blue})`;
-      ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-      x += barWidth + 1;
-    }
-  }
+      for (let i = 0; i < bufferLength; i++) {{
+        const barHeight = dataArray[i] / 255 * canvas.height;
+        const red = Math.min(255, barHeight + 100);
+        const green = Math.min(255, 250 * (i / bufferLength));
+        const blue = 50;
+        ctx.fillStyle = `rgb(${{red}},${{green}},${{blue}})`;
+        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+        x += barWidth + 1;
+      }}
+    }}
 
-  audio.addEventListener('play', () => {
-    if (!audioContext) {
-      setupAudio();
-      draw();
-    }
-    if (audioContext.state === 'suspended') {
-      audioContext.resume();
-    }
-  });
-</script>
-
+    audio.addEventListener('play', () => {{
+      if (!audioContext) {{
+        setupAudio();
+        draw();
+      }}
+      if (audioContext.state === 'suspended') {{
+        audioContext.resume();
+      }}
+    }});
+  </script>
 </body>
 </html>'''
-
-
 
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html_content)
@@ -275,8 +268,8 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest_xml)
 
-# Streamlit Interface
-st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio et Sous-titres")
+# Interface utilisateur Streamlit
+st.title("Convertisseur MP3 → SCORM avec Spectre Audio et Sous-titres")
 
 uploaded_file = st.file_uploader("Choisissez un fichier MP3", type=["mp3"])
 add_subtitles = st.checkbox("Ajouter des sous-titres")
@@ -329,14 +322,13 @@ if uploaded_file:
         with open(path, "wb") as f:
             f.write(file.getbuffer())
         subtitle_paths.append(path)
-        
-    completion_rate = st.slider(
-    "Taux de complétion requis (%) pour valider l'audio :",
-    min_value=10, max_value=100, value=80, step=1,
-    help="L'audio doit être écouté au moins à ce pourcentage pour être considéré comme complété."
-)
 
-    
+    completion_rate = st.slider(
+        "Taux de complétion requis (%) pour valider l'audio :",
+        min_value=10, max_value=100, value=80, step=1,
+        help="L'audio doit être écouté au moins à ce pourcentage pour être considéré comme complété."
+    )
+
     if st.button("Générer le package SCORM"):
         if (scorm_12 and scorm_2004) or (not scorm_12 and not scorm_2004):
             st.error("Veuillez cocher exactement une version SCORM : soit SCORM 1.2, soit SCORM 2004.")
