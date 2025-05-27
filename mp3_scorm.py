@@ -129,12 +129,19 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
       display: block;
       margin: 20px auto 0;
     }}
+    #completion-message {{
+      margin-top: 20px;
+      font-weight: bold;
+      color: #4caf50;
+      display: none;
+    }}
   </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
 
   <p id="completion-info">Taux de complétion requis pour valider : <strong>{completion_rate}%</strong></p>
+  <p id="completion-message">Vous avez atteint le seuil de complétion requis 🎉</p>
 
   <video id="player" controls crossorigin>
     <source src="{mp3_filename}" type="audio/mp3" />
@@ -148,14 +155,24 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   <script>
     const completionRate = {completion_rate};
     const audio = document.getElementById('player');
+    const completionMessage = document.getElementById('completion-message');
     let completed = false;
+    let maxPlayed = 0;
 
     audio.addEventListener('timeupdate', () => {{
-      if (completed || !audio.duration) return;
+      if (!audio.duration) return;
+
+      if (audio.currentTime > maxPlayed + 0.75) {{
+        // L'utilisateur a tenté d'avancer
+        audio.currentTime = maxPlayed;
+      }} else {{
+        maxPlayed = Math.max(maxPlayed, audio.currentTime);
+      }}
+
       const playedPercent = (audio.currentTime / audio.duration) * 100;
-      if (playedPercent >= completionRate) {{
+      if (!completed && playedPercent >= completionRate) {{
         completed = true;
-        alert('🎉 Bravo ! Vous avez atteint le taux de complétion requis.');
+        completionMessage.style.display = 'block';
       }}
     }});
 
@@ -216,6 +233,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   </script>
 </body>
 </html>'''
+
 
 
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
