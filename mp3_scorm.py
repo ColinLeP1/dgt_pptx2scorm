@@ -136,39 +136,33 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
 
   <p id="completion-info">Taux de complétion requis pour valider : <strong>{completion_rate}%</strong></p>
 
-<video id="player" controls crossorigin>
-  <source src="{mp3_filename}" type="audio/mp3" />
-  {track_elements}
-  Your browser does not support the audio element.
-</video>
-
-<canvas id="canvas"></canvas>
-
-<script>
-  const completionRate = {completion_rate};
-  const player = document.getElementById('player');
-  let completed = false;
-
-  player.addEventListener('timeupdate', () => {
-    if (completed || !player.duration) return;
-    const playedPercent = (player.currentTime / player.duration) * 100;
-    if (playedPercent >= completionRate) {
-      completed = true;
-      alert('🎉 Bravo ! Vous avez atteint le taux de complétion requis.');
-    }
-  });
-</script>
-
+  <video id="player" controls crossorigin>
+    <source src="{mp3_filename}" type="audio/mp3" />
+    {track_elements}
+    Your browser does not support the audio element.
+  </video>
 
   <canvas id="canvas"></canvas>
 
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
-    const player = new Plyr('#player', {{
+    const completionRate = {completion_rate};
+    const audio = document.getElementById('player');
+    let completed = false;
+
+    audio.addEventListener('timeupdate', () => {{
+      if (completed || !audio.duration) return;
+      const playedPercent = (audio.currentTime / audio.duration) * 100;
+      if (playedPercent >= completionRate) {{
+        completed = true;
+        alert('🎉 Bravo ! Vous avez atteint le taux de complétion requis.');
+      }}
+    }});
+
+    const plyrPlayer = new Plyr('#player', {{
       captions: {{ active: true, update: true, language: 'auto' }},
     }});
 
-    const audio = document.getElementById('player');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = canvas.clientWidth * window.devicePixelRatio;
@@ -204,7 +198,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
         const red = Math.min(255, barHeight + 100);
         const green = Math.min(255, 250 * (i / bufferLength));
         const blue = 50;
-        ctx.fillStyle = `rgb(${{red}},${{green}},${{blue}})`;
+        ctx.fillStyle = `rgb(${{red}}, ${{green}}, ${{blue}})`;
         ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
         x += barWidth + 1;
       }}
@@ -222,6 +216,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   </script>
 </body>
 </html>'''
+
 
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html_content)
