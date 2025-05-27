@@ -137,21 +137,24 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     width: 100% !important;
     height: 100% !important;
     pointer-events: none;
-    z-index: 20; /* plus bas que les sous-titres */
+    z-index: 5;  /* plus bas que les sous-titres */
     mix-blend-mode: screen;
   }}
 
   .plyr__captions {{
-    position: relative;
-    z-index: 0; /* au-dessus du canvas */
+    position: absolute;
+    bottom: 10%;
+    width: 100%;
+    z-index: 10; /* au-dessus du canvas */
+    background: rgba(0, 0, 0, 0.7); /* fond noir semi-transparent */
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 1.2em;
+    line-height: 1.4;
   }}
 
   .plyr__caption {{
-    background-color: rgba(0, 0, 0);
     color: white;
-    padding: 0.2em 0.4em;
-    border-radius: 0.2em;
-    font-size: 1.2em;
   }}
 
   #completion-message {{
@@ -160,23 +163,22 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     color: #4caf50;
     display: none;
   }}
-</style>
-
-
+  </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
   <p id="completion-info">Taux de complétion requis pour valider : <strong>{completion_rate}%</strong></p>
   <p id="completion-message">Vous avez atteint le seuil de complétion requis 🎉</p>
 
-<div class="player-container">
-  <video id="player" controls crossorigin>
-    <source src="{mp3_filename}" type="audio/mp3" />
-    {track_elements}
-    Your browser does not support the audio element.
-  </video>
-  <canvas id="canvas"></canvas>
-</div>
+  <div class="player-container">
+    <video id="player" controls crossorigin>
+      <source src="{mp3_filename}" type="audio/mp3" />
+      {track_elements}
+      Your browser does not support the audio element.
+    </video>
+    <canvas id="canvas"></canvas>
+  </div>
+
 
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
