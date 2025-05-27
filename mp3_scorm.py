@@ -85,35 +85,63 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
             subtitle_filenames.append(filename)
             shutil.copy(path, os.path.join(output_dir, filename))
 
+    # Génération des balises <track>
     track_elements = "\n    ".join([
-        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}" />' 
+        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{os.path.splitext(fn)[0].split("_")[-1].capitalize()}" default />'
         for fn in subtitle_filenames
     ])
 
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<title>{scorm_title}</title>
-<style>
-  body {{ font-family: Arial, sans-serif; background-color: #222; color: #eee; padding: 20px; text-align: center; }}
-  h1 {{ margin-bottom: 20px; }}
-  #audioPlayer {{ display: inline-block; margin-bottom: 10px; }}
-  canvas {{ border: 1px solid #444; background-color: #000; width: 80%; max-width: 600px; height: 150px; display: block; margin: 0 auto; }}
-  #subtitle {{ color: white; font-size: 20px; margin-top: 10px; height: 40px; }}
-</style>
+  <meta charset="UTF-8" />
+  <title>{scorm_title}</title>
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+  <style>
+    body {{
+      font-family: Arial, sans-serif;
+      background-color: #222;
+      color: #eee;
+      padding: 20px;
+      text-align: center;
+    }}
+    h1 {{
+      margin-bottom: 20px;
+    }}
+    #player {{
+      width: 100%;
+      max-width: 600px;
+      margin: auto;
+    }}
+    video {{
+      background: #000;
+    }}
+    canvas {{
+      border: 1px solid #444;
+      background-color: #000;
+      width: 80%;
+      max-width: 600px;
+      height: 150px;
+      display: block;
+      margin: 20px auto;
+    }}
+  </style>
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <audio id="audioPlayer" controls>
-    <source src="{mp3_filename}" type="audio/mpeg">
+  <video id="player" controls crossorigin>
+    <source src="{mp3_filename}" type="audio/mpeg" />
     {track_elements}
-    Votre navigateur ne supporte pas la lecture audio.
-  </audio>
+  </video>
   <canvas id="canvas"></canvas>
-  <div id="subtitle"></div>
+
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
-    const audio = document.getElementById('audioPlayer');
+    const player = new Plyr('#player', {{
+      captions: {{ active: true, update: true }},
+    }});
+
+    const video = document.getElementById('player');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = canvas.clientWidth * window.devicePixelRatio;
@@ -126,7 +154,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
 
     function setupAudio() {{
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      source = audioContext.createMediaElementSource(audio);
+      source = audioContext.createMediaElementSource(video);
       analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
@@ -155,15 +183,13 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
       }}
     }}
 
-    const subtitleDiv = document.getElementById('subtitle');
-
     function animate() {{
       if (!audioContext) return;
       draw();
       requestAnimationFrame(animate);
     }}
 
-    audio.addEventListener('play', () => {{
+    video.addEventListener('play', () => {{
       if (!audioContext) {{
         setupAudio();
         animate();
@@ -182,6 +208,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     manifest_xml = create_scorm_manifest(version, scorm_title, mp3_filename, subtitle_filenames)
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest_xml)
+
 
 # Interface Streamlit
 st.title("Convertisseur MP3 → Package SCORM avec Spectre Audio et Sous-titres")
