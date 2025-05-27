@@ -120,10 +120,11 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   }}
 
   .player-container {{
-    position: relative;
-    width: 80%;
-    max-width: 600px;
-    margin: 0 auto;
+  position: relative;
+  width: 80%;
+  max-width: 600px;
+  margin: 0 auto;
+  z-index: 0; /* Base pour enfant */
   }}
 
   video, .plyr {{
@@ -137,7 +138,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   width: 100% !important;
   height: 100% !important;
   pointer-events: none;
-  z-index: 1;  /* En arrière */
+  z-index: 0;  /* Tout en arrière */
   mix-blend-mode: screen;
 }}
 
@@ -145,23 +146,22 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   position: absolute;
   bottom: 10%;
   width: 100%;
-  z-index: 10;
-  /* Pas de fond ici pour éviter conflit */
-  background: transparent !important;
   padding: 0;
   margin: 0;
+  z-index: 10; /* Au-dessus du canvas */
+  background: transparent !important; /* Pas de fond ici */
 }}
-
 .plyr__caption {{
   position: relative;
-  z-index: 20;  /* Plus haut que canvas et captions */
-  background: rgba(0, 0, 0, 0.7);  /* Fond noir semi-transparent */
+  z-index: 20; /* Plus haut que le container */
+  background: rgba(0, 0, 0, 0.7); /* Fond noir semi-transparent */
   padding: 5px 10px;
   border-radius: 5px;
-  display: inline-block;  /* Ajuste la taille au texte */
+  display: inline-block;
   color: white;
   font-size: 1.2em;
   line-height: 1.4;
+  white-space: pre-wrap; /* garde le formatage */
 }}
 
   #completion-message {{
