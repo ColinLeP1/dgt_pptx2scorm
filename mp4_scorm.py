@@ -293,26 +293,26 @@ if uploaded_file:
 
     subtitle_paths = []
     for lang_code, file in subtitle_files_dict.items():
-    ext = os.path.splitext(file.name)[1].lower()
+        ext = os.path.splitext(file.name)[1].lower()
+        
+        # Vérifie si le code langue est dans le nom de fichier
+        if f"_{lang_code}" not in file.name:
+            base_name = os.path.splitext(file.name)[0]
+            new_filename = f"{base_name}_{lang_code}{ext}"
+        else:
+            new_filename = file.name
     
-    # Vérifie si le code langue est dans le nom de fichier
-    if f"_{lang_code}" not in file.name:
-        base_name = os.path.splitext(file.name)[0]
-        new_filename = f"{base_name}_{lang_code}{ext}"
-    else:
-        new_filename = file.name
-
-    full_input_path = os.path.join(temp_dir, new_filename)
-
-    with open(full_input_path, "wb") as f:
-        f.write(file.getbuffer())
-
-    if ext == '.srt':
-        vtt_path = os.path.join(temp_dir, f"{os.path.splitext(new_filename)[0]}.vtt")
-        srt_to_vtt(full_input_path, vtt_path)
-        subtitle_paths.append(vtt_path)
-    else:
-        subtitle_paths.append(full_input_path)
+        full_input_path = os.path.join(temp_dir, new_filename)
+    
+        with open(full_input_path, "wb") as f:
+            f.write(file.getbuffer())
+    
+        if ext == '.srt':
+            vtt_path = os.path.join(temp_dir, f"{os.path.splitext(new_filename)[0]}.vtt")
+            srt_to_vtt(full_input_path, vtt_path)
+            subtitle_paths.append(vtt_path)
+        else:
+            subtitle_paths.append(full_input_path)
 
 
     completion_rate = st.slider("Taux de complétion requis (%) :", 10, 100, 80, step=5)
