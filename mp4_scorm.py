@@ -298,30 +298,29 @@ if uploaded_file:
         f.write(uploaded_file.getbuffer())
 
     subtitle_paths = []
-    for lang_code, file in subtitle_files_dict.items():
-        ext = os.path.splitext(file.name)[1].lower()
-        basename = os.path.splitext(file.name)[0]
+for lang_code, file in subtitle_files_dict.items():
+    ext = os.path.splitext(file.name)[1].lower()
+    basename = os.path.splitext(file.name)[0]
 
-        # Vérifie si le nom contient déjà le code langue (ex: "_fr")
-        if f"_{lang_code}" not in basename:
-            # Renommer en ajoutant le code langue avant l'extension
-            new_basename = f"{basename}_{lang_code}"
-        else:
-            new_basename = basename
+    # Si le code langue n’est pas déjà dans le nom, on l’ajoute
+    if f"_{lang_code}" not in basename:
+        new_basename = f"{basename}_{lang_code}"
+    else:
+        new_basename = basename
 
-        filename = f"{new_basename}{ext}"
-        path = os.path.join(temp_dir, filename)
+    filename = f"{new_basename}{ext}"
+    path = os.path.join(temp_dir, filename)
 
-        with open(path, "wb") as f:
-            f.write(file.getbuffer())
+    with open(path, "wb") as f:
+        f.write(file.getbuffer())
 
-        if ext == '.srt':
-            # Convertir en vtt
-            vtt_path = os.path.join(temp_dir, f"{new_basename}.vtt")
-            srt_to_vtt(path, vtt_path)
-            subtitle_paths.append(vtt_path)
-        else:
-            subtitle_paths.append(path)
+    # Conversion SRT → VTT si nécessaire
+    if ext == '.srt':
+        vtt_path = os.path.join(temp_dir, f"{new_basename}.vtt")
+        srt_to_vtt(path, vtt_path)
+        subtitle_paths.append(vtt_path)
+    else:
+        subtitle_paths.append(path)
 
     completion_rate = st.slider("Taux de complétion requis (%) :", 10, 100, 80, step=5)
 
