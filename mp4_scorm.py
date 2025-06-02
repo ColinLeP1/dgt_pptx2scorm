@@ -9,14 +9,21 @@ wrapper_scorm12_js = """
 var scorm12 = {
   api: null,
   initialized: false,
-  findAPI: function (win) {
-    var tries = 0;
-    while (!win.API && win.parent && win !== win.parent && tries++ < 10) {
-      win = win.parent;
+  findAPI: function(win) {
+    var attempts = 0;
+    while (win && attempts++ < 10) {
+      if (win.API) return win.API;
+      if (win.parent && win !== win.parent) {
+        win = win.parent;
+      } else if (win !== window.top) {
+        win = window.top;
+      } else {
+        break;
+      }
     }
-    return win.API || null;
+    return null;
   },
-  init: function () {
+  init: function() {
     this.api = this.findAPI(window);
     if (this.api && this.api.LMSInitialize("")) {
       this.initialized = true;
@@ -26,46 +33,54 @@ var scorm12 = {
       return false;
     }
   },
-  set: function (key, value) {
+  set: function(key, value) {
     if (!this.initialized) return false;
     return this.api.LMSSetValue(key, value);
   },
-  get: function (key) {
+  get: function(key) {
     if (!this.initialized) return null;
     return this.api.LMSGetValue(key);
   },
-  commit: function () {
+  commit: function() {
     if (!this.initialized) return false;
     return this.api.LMSCommit("");
   },
-  finish: function () {
+  finish: function() {
     if (!this.initialized) return;
     this.api.LMSFinish("");
     this.initialized = false;
+  },
+  setScormCompleted: function() {
+    if (!this.initialized) return;
+    // Statut complété SCORM 1.2
+    this.set("cmi.core.lesson_status", "completed");
+    this.set("cmi.core.exit", "logout");
+    this.commit();
   }
 };
 window.addEventListener("load", () => {
   scorm12.init();
 });
 window.addEventListener("beforeunload", () => {
+  scorm12.setScormCompleted();
   scorm12.commit();
   scorm12.finish();
 });
 """
 
-# SCORM 2004 Wrapper
+# Wrapper SCORM 2004 modifié avec findAPI améliorée et setScormCompleted
 wrapper_scorm2004_js = """
 var scorm2004 = {
   api: null,
   initialized: false,
-  findAPI: function (win) {
+  findAPI: function(win) {
     var tries = 0;
     while (!win.API_1484_11 && win.parent && win !== win.parent && tries++ < 10) {
       win = win.parent;
     }
     return win.API_1484_11 || null;
   },
-  init: function () {
+  init: function() {
     this.api = this.findAPI(window);
     if (this.api && this.api.Initialize("")) {
       this.initialized = true;
@@ -75,24 +90,40 @@ var scorm2004 = {
       return false;
     }
   },
-  set: function (key, value) {
+  set: function(key, value) {
     if (!this.initialized) return false;
     return this.api.SetValue(key, value);
   },
-  get: function (key) {
+  get: function(key) {
     if (!this.initialized) return null;
     return this.api.GetValue(key);
   },
-  commit: function () {
+  commit: function() {
     if (!this.initialized) return false;
     return this.api.Commit("");
   },
-  finish: function () {
+  finish: function() {
     if (!this.initialized) return;
     this.api.Terminate("");
     this.initialized = false;
+  },
+  setScormCompleted: function() {
+    if (!this.initialized) return;
+    // Statut complété SCORM 2004
+    this.set("cmi.completion_status", "completed");
+    this.set("cmi.exit", "normal");
+    this.commit();
   }
 };
+window.addEventListener("load", () => {
+  scorm2004.init();
+});
+window.addEventListener("beforeunload", () => {
+  scorm2004.setScormCompleted();
+  scorm2004.commit();
+  scorm2004.finish();
+});
+"""
 window.addEventListener("load", () => {
   scorm2004.init();
 });
