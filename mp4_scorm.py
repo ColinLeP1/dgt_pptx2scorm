@@ -142,7 +142,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
 </head>
 <body>
   <h1>{scorm_title}</h1>
-  <p>Taux de complétion requis : <strong>{completion_rate}%</strong></p>
+  <p id="completion-info">Taux de complétion requis atteint : <strong>{completion_rate}%</strong></p>
   <p id="completion-message">Vous avez atteint le seuil de complétion requis 🎉</p>
 
   <div class="player-container">
