@@ -101,9 +101,11 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
 
     # Création des balises <track> pour chaque sous-titre
     track_elements = "\n      ".join([
-        f'<track src="{fn}" kind="subtitles" srclang="{os.path.splitext(fn)[0].split("_")[-1]}" label="{pycountry.languages.get(alpha_2=os.path.splitext(fn)[0].split("_")[-1]).name}" default />'
-        for fn in subtitle_filenames
+    f'<track src="{fn}" kind="subtitles" srclang="{lang_code}" label="{pycountry.languages.get(alpha_2=lang_code).name if pycountry.languages.get(alpha_2=lang_code) else lang_code}" default />'
+    for fn in subtitle_filenames
+    if (lang_code := os.path.splitext(fn)[0].split("_")[-1])
     ])
+
 
     # Génération du HTML avec Plyr + sous-titres intégrés
     html_content = f'''<!DOCTYPE html>
