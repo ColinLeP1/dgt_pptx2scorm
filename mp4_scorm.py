@@ -4,6 +4,105 @@ import shutil
 import uuid
 import pycountry
 
+# SCORM 1.2 Wrapper
+wrapper_scorm12_js = """
+var scorm12 = {
+  api: null,
+  initialized: false,
+  findAPI: function (win) {
+    var tries = 0;
+    while (!win.API && win.parent && win !== win.parent && tries++ < 10) {
+      win = win.parent;
+    }
+    return win.API || null;
+  },
+  init: function () {
+    this.api = this.findAPI(window);
+    if (this.api && this.api.LMSInitialize("")) {
+      this.initialized = true;
+      return true;
+    } else {
+      console.warn("SCORM 1.2 API not found or failed to initialize.");
+      return false;
+    }
+  },
+  set: function (key, value) {
+    if (!this.initialized) return false;
+    return this.api.LMSSetValue(key, value);
+  },
+  get: function (key) {
+    if (!this.initialized) return null;
+    return this.api.LMSGetValue(key);
+  },
+  commit: function () {
+    if (!this.initialized) return false;
+    return this.api.LMSCommit("");
+  },
+  finish: function () {
+    if (!this.initialized) return;
+    this.api.LMSFinish("");
+    this.initialized = false;
+  }
+};
+window.addEventListener("load", () => {
+  scorm12.init();
+});
+window.addEventListener("beforeunload", () => {
+  scorm12.commit();
+  scorm12.finish();
+});
+"""
+
+# SCORM 2004 Wrapper
+wrapper_scorm2004_js = """
+var scorm2004 = {
+  api: null,
+  initialized: false,
+  findAPI: function (win) {
+    var tries = 0;
+    while (!win.API_1484_11 && win.parent && win !== win.parent && tries++ < 10) {
+      win = win.parent;
+    }
+    return win.API_1484_11 || null;
+  },
+  init: function () {
+    this.api = this.findAPI(window);
+    if (this.api && this.api.Initialize("")) {
+      this.initialized = true;
+      return true;
+    } else {
+      console.warn("SCORM 2004 API not found or failed to initialize.");
+      return false;
+    }
+  },
+  set: function (key, value) {
+    if (!this.initialized) return false;
+    return this.api.SetValue(key, value);
+  },
+  get: function (key) {
+    if (!this.initialized) return null;
+    return this.api.GetValue(key);
+  },
+  commit: function () {
+    if (!this.initialized) return false;
+    return this.api.Commit("");
+  },
+  finish: function () {
+    if (!this.initialized) return;
+    this.api.Terminate("");
+    this.initialized = false;
+  }
+};
+window.addEventListener("load", () => {
+  scorm2004.init();
+});
+window.addEventListener("beforeunload", () => {
+  scorm2004.commit();
+  scorm2004.finish();
+});
+"""
+
+
 # Fonction pour convertir un fichier .srt en .vtt
 def srt_to_vtt(srt_path, vtt_path):
     with open(srt_path, 'r', encoding='utf-8') as srt_file:
@@ -149,7 +248,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
       Votre navigateur ne prend pas en charge la vidéo.
     </video>
   </div>
-
+  <script src="wrapper.js"></script>
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
     const completionRate = {completion_rate};
@@ -260,6 +359,9 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
     manifest = create_scorm_manifest(version, scorm_title, video_filename, subtitle_filenames)
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest)
+    wrapper_script = wrapper_scorm12_js if version == "1.2" else wrapper_scorm2004_js
+    with open(os.path.join(output_dir, 'wrapper.js'), 'w', encoding='utf-8') as f:
+        f.write(wrapper_script)
 
 # --- Interface utilisateur Streamlit ---
 
