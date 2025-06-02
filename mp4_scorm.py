@@ -206,6 +206,17 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
       }}
     }});
 
+    const userLang = navigator.language.slice(0, 2); // exemple: 'fr'
+const tracks = document.querySelectorAll('track');
+
+tracks.forEach(track => {
+  if (track.getAttribute('srclang') === userLang) {
+    track.setAttribute('default', 'default');
+  } else {
+    track.removeAttribute('default');
+  }
+});
+
 const userLang = navigator.language.slice(0, 2);
 const tracks = document.querySelectorAll('track');
 let foundLang = false;
@@ -294,26 +305,16 @@ if uploaded_file:
     subtitle_paths = []
     for lang_code, file in subtitle_files_dict.items():
         ext = os.path.splitext(file.name)[1].lower()
-        
-        # Vérifie si le code langue est dans le nom de fichier
-        if f"_{lang_code}" not in file.name:
-            base_name = os.path.splitext(file.name)[0]
-            new_filename = f"{base_name}_{lang_code}{ext}"
-        else:
-            new_filename = file.name
-    
-        full_input_path = os.path.join(temp_dir, new_filename)
-    
-        with open(full_input_path, "wb") as f:
-            f.write(file.getbuffer())
-    
         if ext == '.srt':
-            vtt_path = os.path.join(temp_dir, f"{os.path.splitext(new_filename)[0]}.vtt")
-            srt_to_vtt(full_input_path, vtt_path)
+            srt_path = os.path.join(temp_dir, f"sub_{lang_code}.srt")
+            vtt_path = os.path.join(temp_dir, f"sub_{lang_code}.vtt")
+            with open(srt_path, "wb") as f: f.write(file.getbuffer())
+            srt_to_vtt(srt_path, vtt_path)
             subtitle_paths.append(vtt_path)
         else:
-            subtitle_paths.append(full_input_path)
-
+            path = os.path.join(temp_dir, f"sub_{lang_code}{ext}")
+            with open(path, "wb") as f: f.write(file.getbuffer())
+            subtitle_paths.append(path)
 
     completion_rate = st.slider("Taux de complétion requis (%) :", 10, 100, 80, step=5)
 
