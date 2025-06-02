@@ -1,6 +1,5 @@
 import streamlit as st
 import os
-import zipfile
 import shutil
 import uuid
 import pycountry
@@ -17,7 +16,7 @@ def srt_to_vtt(srt_path, vtt_path):
                 line = line.replace(',', '.')
             vtt_file.write(line)
 
-# Fonction pour générer le fichier manifest (SCORM 1.2 et 2004)
+# Fonction pour générer le fichier manifest SCORM
 def create_scorm_manifest(version, title, video_filename, subtitle_filenames):
     subtitle_entries = "".join([f'\n      <file href="{fn}"/>' for fn in subtitle_filenames]) if subtitle_filenames else ""
 
@@ -83,6 +82,7 @@ def create_scorm_manifest(version, title, video_filename, subtitle_filenames):
   </resources>
 </manifest>'''
 
+# Fonction principale pour créer le package SCORM
 def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
     os.makedirs(output_dir, exist_ok=True)
 
@@ -95,12 +95,14 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
         subtitle_filenames.append(filename)
         shutil.copy(path, os.path.join(output_dir, filename))
 
+    # Création des balises <track> pour chaque sous-titre
     track_elements = "\n      ".join([
         f'<track src="{fn}" kind="subtitles" srclang="{lang_code}" label="{pycountry.languages.get(alpha_2=lang_code).name if pycountry.languages.get(alpha_2=lang_code) else lang_code}" />'
         for fn in subtitle_filenames
         if (lang_code := os.path.splitext(fn)[0].split("_")[-1])
     ])
 
+    # Génération du fichier HTML avec Plyr et sous-titres
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -117,7 +119,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
     }}
 
     #completion-info {{
-    display: none;
+      display: none;
     }}
     .player-container {{
       width: 80%;
@@ -190,6 +192,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
       const tracks = player.elements.video.textTracks;
       let selectedTrackIndex = -1;
 
+      // Cherche la piste correspondant à la langue du navigateur
       for (let i = 0; i < tracks.length; i++) {{
         if (tracks[i].language === langCode) {{
           selectedTrackIndex = i;
@@ -197,6 +200,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
         }}
       }}
 
+      // Si pas trouvée, fallback sur anglais
       if (selectedTrackIndex === -1) {{
         for (let i = 0; i < tracks.length; i++) {{
           if (tracks[i].language === 'en') {{
@@ -206,6 +210,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
         }}
       }}
 
+      // Active la piste trouvée, désactive les autres
       for (let i = 0; i < tracks.length; i++) {{
         tracks[i].mode = (i === selectedTrackIndex) ? 'showing' : 'disabled';
       }}
@@ -252,7 +257,6 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest)
 
-
 # --- Interface utilisateur Streamlit ---
 
 st.title("Convertisseur Vidéo MP4 → SCORM avec Sous-titres")
@@ -275,6 +279,10 @@ if add_subtitles:
         subtitle_file = st.file_uploader(f"Sous-titre pour {lang_code}", type=["srt", "vtt"], key=f"sub_{lang_code}")
         if subtitle_file:
             subtitle_files_dict[lang_code] = subtitle_file
+
+version = st.radio("Version SCORM :", options=["1.2", "2004"])
+
+scorm_title = st.text_input("Titre SCORM :", value=uploaded_file.name.rsplit(".", 1)[0] if uploaded_file else "Mon Cours Vidéo SCORM")
 
 if uploaded_file:
     temp_dir = f"temp_scorm_{uuid.uuid4()}"
@@ -306,18 +314,13 @@ if uploaded_file:
         else:
             subtitle_paths.append(path)
 
-    # Slider placé ici, **en dehors de la boucle** et appelé une seule fois
     completion_rate = st.slider("Taux de complétion requis (%) :", 10, 100, 80, step=5)
 
     if st.button("Créer le package SCORM"):
-        if not (scorm_12 or scorm_2004):
-            st.error("Choisissez une version SCORM.")
-        else:
-            version = "1.2" if scorm_12 else "2004"
-            output_dir = f"scorm_output_{uuid.uuid4()}"
-            create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_title, completion_rate)
-            shutil.make_archive(output_dir, 'zip', output_dir)
-            with open(f"{output_dir}.zip", "rb") as f:
-                st.download_button("Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
-            shutil.rmtree(temp_dir)
-            shutil.rmtree(output_dir)
+        output_dir = f"scorm_output_{uuid.uuid4()}"
+        create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_title, completion_rate)
+        shutil.make_archive(output_dir, 'zip', output_dir)
+        with open(f"{output_dir}.zip", "rb") as f:
+            st.download_button("Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
+        shutil.rmtree(temp_dir)
+        shutil.rmtree(output_dir)
