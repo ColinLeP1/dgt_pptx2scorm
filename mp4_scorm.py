@@ -101,7 +101,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
 
     # Création des balises <track> pour chaque sous-titre
     track_elements = "\n      ".join([
-    f'<track src="{fn}" kind="subtitles" srclang="{lang_code}" label="{pycountry.languages.get(alpha_2=lang_code).name if pycountry.languages.get(alpha_2=lang_code) else lang_code}" default />'
+    f'<track src="{fn}" kind="subtitles" srclang="{lang_code}" label="{pycountry.languages.get(alpha_2=lang_code).name if pycountry.languages.get(alpha_2=lang_code) else lang_code}" />'
     for fn in subtitle_filenames
     if (lang_code := os.path.splitext(fn)[0].split("_")[-1])
     ])
@@ -191,32 +191,36 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
     }}
 
     function selectSubtitleTrack(player) {{
-      const userLang = navigator.language || navigator.userLanguage;
-      const langCode = userLang ? userLang.slice(0, 2) : null;
+  const userLang = navigator.language || navigator.userLanguage;
+  const langCode = userLang ? userLang.slice(0, 2) : null;
 
-      const tracks = player.elements.video.textTracks;
-      let selectedTrackIndex = -1;
+  const tracks = player.elements.video.textTracks;
+  let selectedTrackIndex = -1;
 
-      for (let i = 0; i < tracks.length; i++) {{
-        if (tracks[i].language === langCode) {{
-          selectedTrackIndex = i;
-          break;
-        }}
-      }}
+  // Cherche la piste correspondant à la langue du navigateur
+  for (let i = 0; i < tracks.length; i++) {{
+    if (tracks[i].language === langCode) {{
+      selectedTrackIndex = i;
+      break;
+    }}
+  }}
 
-      if (selectedTrackIndex === -1) {{
-        for (let i = 0; i < tracks.length; i++) {{
-          if (tracks[i].language === 'en') {{
-            selectedTrackIndex = i;
-            break;
-          }}
-        }}
-      }}
-
-      for (let i = 0; i < tracks.length; i++) {{
-        tracks[i].mode = (i === selectedTrackIndex) ? 'showing' : 'disabled';
+  // Si pas trouvée, fallback sur anglais
+  if (selectedTrackIndex === -1) {{
+    for (let i = 0; i < tracks.length; i++) {{
+      if (tracks[i].language === 'en') {{
+        selectedTrackIndex = i;
+        break;
       }}
     }}
+  }}
+
+  // Active la piste trouvée (mode = 'showing')
+  // Les autres restent désactivées (mode = 'disabled')
+  for (let i = 0; i < tracks.length; i++) {{
+    tracks[i].mode = (i === selectedTrackIndex) ? 'showing' : 'disabled';
+  }}
+}}
 
     video.addEventListener('timeupdate', () => {{
       if (!video.duration) return;
