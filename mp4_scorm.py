@@ -17,7 +17,7 @@ def srt_to_vtt(srt_path, vtt_path):
                 line = line.replace(',', '.')
             vtt_file.write(line)
 
-# Fonction pour générer le fichier manifest
+# Fonction pour générer le fichier manifest (SCORM 1.2 et 2004)
 def create_scorm_manifest(version, title, video_filename, subtitle_filenames):
     subtitle_entries = "".join([f'\n      <file href="{fn}"/>' for fn in subtitle_filenames]) if subtitle_filenames else ""
 
@@ -83,31 +83,24 @@ def create_scorm_manifest(version, title, video_filename, subtitle_filenames):
   </resources>
 </manifest>'''
 
-# Fonction principale
-
 def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
     os.makedirs(output_dir, exist_ok=True)
 
-    # Forcer un nom de fichier standardisé pour éviter erreurs MIME
     video_filename = "video.mp4"
     shutil.copy(video_path, os.path.join(output_dir, video_filename))
 
-    # Copie des sous-titres dans le dossier de sortie
     subtitle_filenames = []
     for path in subtitle_paths:
         filename = os.path.basename(path)
         subtitle_filenames.append(filename)
         shutil.copy(path, os.path.join(output_dir, filename))
 
-    # Création des balises <track> pour chaque sous-titre
     track_elements = "\n      ".join([
-    f'<track src="{fn}" kind="subtitles" srclang="{lang_code}" label="{pycountry.languages.get(alpha_2=lang_code).name if pycountry.languages.get(alpha_2=lang_code) else lang_code}" />'
-    for fn in subtitle_filenames
-    if (lang_code := os.path.splitext(fn)[0].split("_")[-1])
+        f'<track src="{fn}" kind="subtitles" srclang="{lang_code}" label="{pycountry.languages.get(alpha_2=lang_code).name if pycountry.languages.get(alpha_2=lang_code) else lang_code}" />'
+        for fn in subtitle_filenames
+        if (lang_code := os.path.splitext(fn)[0].split("_")[-1])
     ])
 
-
-    # Génération du HTML avec Plyr + sous-titres intégrés
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -124,7 +117,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
     }}
 
     #completion-info {{
-      display: none;
+    display: none;
     }}
     .player-container {{
       width: 80%;
@@ -252,12 +245,9 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
 </body>
 </html>'''
 
-
-    # Écriture du fichier HTML
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html_content)
 
-    # Création du manifeste SCORM
     manifest = create_scorm_manifest(version, scorm_title, video_filename, subtitle_filenames)
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest)
@@ -286,11 +276,6 @@ if add_subtitles:
         if subtitle_file:
             subtitle_files_dict[lang_code] = subtitle_file
 
-scorm_12 = st.checkbox("SCORM 1.2")
-scorm_2004 = st.checkbox("SCORM 2004")
-
-scorm_title = st.text_input("Titre SCORM :", value=uploaded_file.name.rsplit(".", 1)[0] if uploaded_file else "Mon Cours Vidéo SCORM")
-
 if uploaded_file:
     temp_dir = f"temp_scorm_{uuid.uuid4()}"
     os.makedirs(temp_dir, exist_ok=True)
@@ -299,30 +284,29 @@ if uploaded_file:
         f.write(uploaded_file.getbuffer())
 
     subtitle_paths = []
-for lang_code, file in subtitle_files_dict.items():
-    ext = os.path.splitext(file.name)[1].lower()
-    basename = os.path.splitext(file.name)[0]
+    for lang_code, file in subtitle_files_dict.items():
+        ext = os.path.splitext(file.name)[1].lower()
+        basename = os.path.splitext(file.name)[0]
 
-    # Si le code langue n’est pas déjà dans le nom, on l’ajoute
-    if f"_{lang_code}" not in basename:
-        new_basename = f"{basename}_{lang_code}"
-    else:
-        new_basename = basename
+        if f"_{lang_code}" not in basename:
+            new_basename = f"{basename}_{lang_code}"
+        else:
+            new_basename = basename
 
-    filename = f"{new_basename}{ext}"
-    path = os.path.join(temp_dir, filename)
+        filename = f"{new_basename}{ext}"
+        path = os.path.join(temp_dir, filename)
 
-    with open(path, "wb") as f:
-        f.write(file.getbuffer())
+        with open(path, "wb") as f:
+            f.write(file.getbuffer())
 
-    # Conversion SRT → VTT si nécessaire
-    if ext == '.srt':
-        vtt_path = os.path.join(temp_dir, f"{new_basename}.vtt")
-        srt_to_vtt(path, vtt_path)
-        subtitle_paths.append(vtt_path)
-    else:
-        subtitle_paths.append(path)
+        if ext == '.srt':
+            vtt_path = os.path.join(temp_dir, f"{new_basename}.vtt")
+            srt_to_vtt(path, vtt_path)
+            subtitle_paths.append(vtt_path)
+        else:
+            subtitle_paths.append(path)
 
+    # Slider placé ici, **en dehors de la boucle** et appelé une seule fois
     completion_rate = st.slider("Taux de complétion requis (%) :", 10, 100, 80, step=5)
 
     if st.button("Créer le package SCORM"):
@@ -337,4 +321,3 @@ for lang_code, file in subtitle_files_dict.items():
                 st.download_button("Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
             shutil.rmtree(temp_dir)
             shutil.rmtree(output_dir)
-
