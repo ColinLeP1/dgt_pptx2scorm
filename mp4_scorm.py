@@ -120,6 +120,10 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
       padding: 20px;
       text-align: center;
     }}
+
+    #completion-info {{
+    display: none;
+    }}
     .player-container {{
       width: 80%;
       max-width: 800px;
@@ -196,6 +200,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
       const playedPercent = (video.currentTime / video.duration) * 100;
       if (!completed && playedPercent >= completionRate) {{
         completed = true;
+        document.getElementById('completion-info').style.display = 'block';
         completionMessage.style.display = 'block';
         setScormCompleted();
       }}
