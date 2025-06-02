@@ -235,6 +235,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
       const playedPercent = (audio.currentTime / audio.duration) * 100;
       if (!completed && playedPercent >= completionRate) {{
         completed = true;
+        document.getElementById('completion-info').style.display = 'block';
         completionMessage.style.display = 'block';
         setScormCompleted();
       }}
