@@ -235,6 +235,10 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
     }});
 
     const plyrPlayer = new Plyr('#player', {{
+    speed: {{ 
+    selected: 1, 
+    options: [0.5, 1, 1.25, 1.5] 
+    }},
       captions: {{
         active: true,
         update: true,
