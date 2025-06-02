@@ -124,7 +124,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
     }}
 
     #completion-info {{
-    display: none;
+      display: none;
     }}
     .player-container {{
       width: 80%;
@@ -191,36 +191,32 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
     }}
 
     function selectSubtitleTrack(player) {{
-  const userLang = navigator.language || navigator.userLanguage;
-  const langCode = userLang ? userLang.slice(0, 2) : null;
+      const userLang = navigator.language || navigator.userLanguage;
+      const langCode = userLang ? userLang.slice(0, 2) : null;
 
-  const tracks = player.elements.video.textTracks;
-  let selectedTrackIndex = -1;
+      const tracks = player.elements.video.textTracks;
+      let selectedTrackIndex = -1;
 
-  // Cherche la piste correspondant à la langue du navigateur
-  for (let i = 0; i < tracks.length; i++) {{
-    if (tracks[i].language === langCode) {{
-      selectedTrackIndex = i;
-      break;
-    }}
-  }}
+      for (let i = 0; i < tracks.length; i++) {{
+        if (tracks[i].language === langCode) {{
+          selectedTrackIndex = i;
+          break;
+        }}
+      }}
 
-  // Si pas trouvée, fallback sur anglais
-  if (selectedTrackIndex === -1) {{
-    for (let i = 0; i < tracks.length; i++) {{
-      if (tracks[i].language === 'en') {{
-        selectedTrackIndex = i;
-        break;
+      if (selectedTrackIndex === -1) {{
+        for (let i = 0; i < tracks.length; i++) {{
+          if (tracks[i].language === 'en') {{
+            selectedTrackIndex = i;
+            break;
+          }}
+        }}
+      }}
+
+      for (let i = 0; i < tracks.length; i++) {{
+        tracks[i].mode = (i === selectedTrackIndex) ? 'showing' : 'disabled';
       }}
     }}
-  }}
-
-  // Active la piste trouvée (mode = 'showing')
-  // Les autres restent désactivées (mode = 'disabled')
-  for (let i = 0; i < tracks.length; i++) {{
-    tracks[i].mode = (i === selectedTrackIndex) ? 'showing' : 'disabled';
-  }}
-}}
 
     video.addEventListener('timeupdate', () => {{
       if (!video.duration) return;
@@ -255,6 +251,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
 
 </body>
 </html>'''
+
 
     # Écriture du fichier HTML
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
