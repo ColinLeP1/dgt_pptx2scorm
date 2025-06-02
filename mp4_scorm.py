@@ -206,6 +206,7 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
+  <script src="wrapper.js"></script>
   <title>{scorm_title}</title>
   <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <style>
