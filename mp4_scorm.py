@@ -155,103 +155,97 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
 
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
-  const completionRate = {{completion_rate}};
-  const video = document.getElementById('player');
-  const completionMessage = document.getElementById('completion-message');
-  let maxPlayed = 0;
-  let completed = false;
+    const completionRate = {completion_rate};
+    const video = document.getElementById('player');
+    const completionMessage = document.getElementById('completion-message');
+    let maxPlayed = 0;
+    let completed = false;
 
-  function findAPI(win) {
-    let attempts = 0;
-    while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {
-      win = win.parent;
-    }
-    return win.API_1484_11 || win.API || null;
-  }
+    function findAPI(win) {{
+      let attempts = 0;
+      while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {{
+        win = win.parent;
+      }}
+      return win.API_1484_11 || win.API || null;
+    }}
 
-  function setScormCompleted() {
-    const api = findAPI(window);
-    if (!api) {
-      console.warn("SCORM API non trouvée.");
-      return;
-    }
-    try {
-      if (api.SetValue) {
-        api.SetValue("cmi.completion_status", "completed");
-        api.Commit("");
-      } else if (api.LMSSetValue) {
-        api.LMSSetValue("cmi.core.lesson_status", "completed");
-        api.LMSCommit("");
-      }
-    } catch (e) {
-      console.error("Erreur SCORM:", e);
-    }
-  }
+    function setScormCompleted() {{
+      const api = findAPI(window);
+      if (!api) {{
+        console.warn("SCORM API non trouvée.");
+        return;
+      }}
+      try {{
+        if (api.SetValue) {{
+          api.SetValue("cmi.completion_status", "completed");
+          api.Commit("");
+        }} else if (api.LMSSetValue) {{
+          api.LMSSetValue("cmi.core.lesson_status", "completed");
+          api.LMSCommit("");
+        }}
+      }} catch (e) {{
+        console.error("Erreur SCORM:", e);
+      }}
+    }}
 
-  // Fonction pour détecter la langue et choisir la bonne piste sous-titres
-  function selectSubtitleTrack(player) {
-    const userLang = navigator.language || navigator.userLanguage; // ex: 'fr-FR'
-    const langCode = userLang ? userLang.slice(0, 2) : null;
+    function selectSubtitleTrack(player) {{
+      const userLang = navigator.language || navigator.userLanguage;
+      const langCode = userLang ? userLang.slice(0, 2) : null;
 
-    // Liste des langues disponibles dans les sous-titres
-    const tracks = player.elements.video.textTracks;
-    let selectedTrackIndex = -1;
+      const tracks = player.elements.video.textTracks;
+      let selectedTrackIndex = -1;
 
-    // Cherche un track correspondant à la langue du navigateur
-    for (let i = 0; i < tracks.length; i++) {
-      if (tracks[i].language === langCode) {
-        selectedTrackIndex = i;
-        break;
-      }
-    }
-
-    // Sinon fallback sur anglais (en)
-    if (selectedTrackIndex === -1) {
-      for (let i = 0; i < tracks.length; i++) {
-        if (tracks[i].language === 'en') {
+      for (let i = 0; i < tracks.length; i++) {{
+        if (tracks[i].language === langCode) {{
           selectedTrackIndex = i;
           break;
-        }
-      }
-    }
+        }}
+      }}
 
-    // Active la piste sélectionnée et désactive les autres
-    for (let i = 0; i < tracks.length; i++) {
-      tracks[i].mode = (i === selectedTrackIndex) ? 'showing' : 'disabled';
-    }
-  }
+      if (selectedTrackIndex === -1) {{
+        for (let i = 0; i < tracks.length; i++) {{
+          if (tracks[i].language === 'en') {{
+            selectedTrackIndex = i;
+            break;
+          }}
+        }}
+      }}
 
-  video.addEventListener('timeupdate', () => {
-    if (!video.duration) return;
+      for (let i = 0; i < tracks.length; i++) {{
+        tracks[i].mode = (i === selectedTrackIndex) ? 'showing' : 'disabled';
+      }}
+    }}
 
-    if (video.currentTime > maxPlayed + 0.75) {
-      video.currentTime = maxPlayed;
-    } else {
-      maxPlayed = Math.max(maxPlayed, video.currentTime);
-    }
+    video.addEventListener('timeupdate', () => {{
+      if (!video.duration) return;
 
-    const playedPercent = (video.currentTime / video.duration) * 100;
-    if (!completed && playedPercent >= completionRate) {
-      completed = true;
-      document.getElementById('completion-info').style.display = 'block';
-      completionMessage.style.display = 'block';
-      setScormCompleted();
-    }
-  });
+      if (video.currentTime > maxPlayed + 0.75) {{
+        video.currentTime = maxPlayed;
+      }} else {{
+        maxPlayed = Math.max(maxPlayed, video.currentTime);
+      }}
 
-  const plyrPlayer = new Plyr('#player', {
-    captions: {
-      active: true,
-      update: true,
-      language: 'auto' // on laisse 'auto' car on gère le choix nous-même
-    }
-  });
+      const playedPercent = (video.currentTime / video.duration) * 100;
+      if (!completed && playedPercent >= completionRate) {{
+        completed = true;
+        document.getElementById('completion-info').style.display = 'block';
+        completionMessage.style.display = 'block';
+        setScormCompleted();
+      }}
+    }});
 
-  // Une fois que Plyr est prêt, on sélectionne le bon sous-titre
-  plyrPlayer.on('ready', () => {
-    selectSubtitleTrack(plyrPlayer);
-  });
-</script>
+    const plyrPlayer = new Plyr('#player', {{
+      captions: {{
+        active: true,
+        update: true,
+        language: 'auto'
+      }}
+    }});
+
+    plyrPlayer.on('ready', () => {{
+      selectSubtitleTrack(plyrPlayer);
+    }});
+  </script>
 
 </body>
 </html>'''
