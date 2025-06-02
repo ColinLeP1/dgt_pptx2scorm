@@ -206,40 +206,11 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
       }}
     }});
 
-const userLang = navigator.language.slice(0, 2);
-const tracks = document.querySelectorAll('track');
-let foundLang = false;
-
-// Première passe : essayer langue navigateur
-tracks.forEach(track => {{
-  if (track.getAttribute('srclang') === userLang) {{
-    track.setAttribute('default', 'default');
-    foundLang = true;
-  }} else {{
-    track.removeAttribute('default');
-  }}
-}});
-
-// Deuxième passe : sinon, activer l'anglais
-if (!foundLang) {{
-  tracks.forEach(track => {{
-    if (track.getAttribute('srclang') === 'en') {{
-      track.setAttribute('default', 'default');
-      foundLang = true;
-    }} else {{
-      track.removeAttribute('default');
-    }}
-  }});
-}}
-
-const plyrPlayer = new Plyr('#player', {{
-  captions: {{
-    active: foundLang,
-    update: true,
-    language: foundLang ? (userLang || 'en') : ''
-  }}
-}});
-
+    const plyrPlayer = new Plyr('#player', {{
+      captions: {{
+        active: true,
+        update: true,
+        language: 'auto'
       }}
     }});
   </script>
