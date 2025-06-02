@@ -296,30 +296,30 @@ if uploaded_file:
         f.write(uploaded_file.getbuffer())
 
     subtitle_paths = []
-for lang_code, file in subtitle_files_dict.items():
-    ext = os.path.splitext(file.name)[1].lower()
-    basename = os.path.splitext(file.name)[0]
+    for lang_code, file in subtitle_files_dict.items():
+        ext = os.path.splitext(file.name)[1].lower()
+        basename = os.path.splitext(file.name)[0]
 
-    # Vérifie si le nom contient déjà le code langue (ex: "_fr")
-    if f"_{lang_code}" not in basename:
-        # Renommer en ajoutant le code langue avant l'extension
-        new_basename = f"{basename}_{lang_code}"
-    else:
-        new_basename = basename
+        # Vérifie si le nom contient déjà le code langue (ex: "_fr")
+        if f"_{lang_code}" not in basename:
+            # Renommer en ajoutant le code langue avant l'extension
+            new_basename = f"{basename}_{lang_code}"
+        else:
+            new_basename = basename
 
-    filename = f"{new_basename}{ext}"
-    path = os.path.join(temp_dir, filename)
+        filename = f"{new_basename}{ext}"
+        path = os.path.join(temp_dir, filename)
 
-    with open(path, "wb") as f:
-        f.write(file.getbuffer())
+        with open(path, "wb") as f:
+            f.write(file.getbuffer())
 
-    if ext == '.srt':
-        # Convertir en vtt
-        vtt_path = os.path.join(temp_dir, f"{new_basename}.vtt")
-        srt_to_vtt(path, vtt_path)
-        subtitle_paths.append(vtt_path)
-    else:
-        subtitle_paths.append(path)
+        if ext == '.srt':
+            # Convertir en vtt
+            vtt_path = os.path.join(temp_dir, f"{new_basename}.vtt")
+            srt_to_vtt(path, vtt_path)
+            subtitle_paths.append(vtt_path)
+        else:
+            subtitle_paths.append(path)
 
     completion_rate = st.slider("Taux de complétion requis (%) :", 10, 100, 80, step=5)
 
@@ -335,3 +335,4 @@ for lang_code, file in subtitle_files_dict.items():
                 st.download_button("Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
             shutil.rmtree(temp_dir)
             shutil.rmtree(output_dir)
+
