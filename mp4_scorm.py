@@ -239,6 +239,12 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
         setScormCompleted();
       }}
     }});
+    window.addEventListener('load', () => {{
+    initScorm();
+    }});
+    window.onbeforeunload = () => {{
+    quitScorm();
+    }};
 
     const plyrPlayer = new Plyr('#player', {{
     speed: {{ 
