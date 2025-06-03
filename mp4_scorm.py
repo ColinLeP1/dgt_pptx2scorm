@@ -302,7 +302,40 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
 # --- Interface utilisateur Streamlit ---
 
 st.title("Convertisseur Vidéo MP4 → SCORM avec Sous-titres")
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = True  # Par défaut sombre
 
+if st.button("Basculer thème sombre/clair"):
+    st.session_state.dark_mode = not st.session_state.dark_mode
+
+# Appliquer le style en fonction du thème
+dark_css = """
+    <style>
+    body {
+        background-color: #1e1e1e;
+        color: #ffffff;
+    }
+    .stButton > button {
+        background-color: #333333;
+        color: white;
+    }
+    </style>
+"""
+
+light_css = """
+    <style>
+    body {
+        background-color: #ffffff;
+        color: #000000;
+    }
+    .stButton > button {
+        background-color: #dddddd;
+        color: black;
+    }
+    </style>
+"""
+
+st.markdown(dark_css if st.session_state.dark_mode else light_css, unsafe_allow_html=True)
 uploaded_file = st.file_uploader("Vidéo MP4", type=["mp4"])
 add_subtitles = st.checkbox("Ajouter des sous-titres")
 
