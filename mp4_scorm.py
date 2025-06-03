@@ -89,7 +89,7 @@ def create_scorm_manifest(version, title, video_filename, subtitle_filenames):
 def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
     os.makedirs(output_dir, exist_ok=True)
     wrapper_src = os.path.join(os.path.dirname(__file__), 'wrapper.js')
-    wrapper_dst = os.path.join(scorm_folder, 'wrapper.js')
+    wrapper_dst = os.path.join(output_dir, 'wrapper.js')
     shutil.copyfile(wrapper_src, wrapper_dst)
     video_filename = "video.mp4"
     shutil.copy(video_path, os.path.join(output_dir, video_filename))
