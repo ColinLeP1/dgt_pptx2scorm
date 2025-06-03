@@ -4,7 +4,13 @@ import shutil
 import uuid
 import pycountry
 
+if "theme" not in st.session_state:
+    st.session_state["theme"] = "dark"
 
+def toggle_theme():
+    st.session_state["theme"] = "light" if st.session_state["theme"] == "dark" else "dark"
+
+st.sidebar.button("🌓 Changer de thème", on_click=toggle_theme)
 
 
 # Fonction pour convertir un fichier .srt en .vtt
@@ -116,32 +122,96 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
   <title>{scorm_title}</title>
   <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <style>
-    body {{
-      font-family: Arial, sans-serif;
-      background-color: #222;
-      color: #eee;
-      padding: 20px;
-      text-align: center;
-    }}
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
 
-    #completion-info {{
-      display: none;
-    }}
-    .player-container {{
-      width: 80%;
-      max-width: 800px;
-      margin: auto;
-    }}
-    video {{
-      width: 100%;
-    }}
-    #completion-message {{
-      margin-top: 20px;
-      font-weight: bold;
-      color: #4caf50;
-      display: none;
-    }}
-  </style>
+  body.dark-theme {
+    background-color: #121212;
+    color: #f0f0f0;
+  }
+
+  body.light-theme {
+    background-color: #f5f5f5;
+    color: #222;
+  }
+
+  h1 {
+    font-size: 2.5rem;
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  #completion-info {
+    display: none;
+    margin-top: 0.5rem;
+    font-size: 1.1rem;
+    color: #ffca28;
+  }
+
+  #completion-message {
+    display: none;
+    margin-top: 1.5rem;
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #4caf50;
+    animation: fadeIn 0.6s ease-in-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .player-wrapper {
+    width: 90%;
+    max-width: 960px;
+    margin: 2rem auto;
+    padding: 1.5rem;
+    background: rgba(255,255,255,0.04);
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+  }
+
+  video {
+    width: 100%;
+    border-radius: 12px;
+  }
+
+  .footer {
+    margin-top: auto;
+    font-size: 0.85rem;
+    opacity: 0.6;
+    padding: 1rem;
+  }
+
+  .restart-button {
+    display: none;
+    margin-top: 1rem;
+    padding: 10px 20px;
+    background-color: #4caf50;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  .restart-button:hover {
+    background-color: #43a047;
+  }
+</style>
+
 </head>
 <body>
   <h1>{scorm_title}</h1>
