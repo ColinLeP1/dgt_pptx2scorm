@@ -156,112 +156,138 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
     </video>
   </div>
   <script src="wrapper.js"></script>
-  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
-  <script>
-    const completionRate = {completion_rate};
-    const video = document.getElementById('player');
-    const completionMessage = document.getElementById('completion-message');
-    let maxPlayed = 0;
-    let completed = false;
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+<script>
+  const completionRate = {{completion_rate}};
+  const video = document.getElementById('player');
+  const completionMessage = document.getElementById('completion-message');
+  let maxPlayed = 0;
+  let completed = false;
 
-    function findAPI(win) {{
-      let attempts = 0;
-      while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {{
-        win = win.parent;
+  function findAPI(win) {{
+    let attempts = 0;
+    while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {{
+      win = win.parent;
+    }}
+    return win.API_1484_11 || win.API || null;
+  }}
+
+  function setScormCompleted() {{
+    const api = findAPI(window);
+    if (!api) {{
+      console.warn("SCORM API non trouvée.");
+      return;
+    }}
+    try {{
+      if (api.SetValue) {{
+        api.SetValue("cmi.completion_status", "completed");
+        api.Commit("");
+      }} else if (api.LMSSetValue) {{
+        api.LMSSetValue("cmi.core.lesson_status", "completed");
+        api.LMSCommit("");
       }}
-      return win.API_1484_11 || win.API || null;
+    }} catch (e) {{
+      console.error("Erreur SCORM:", e);
+    }}
+  }}
+
+  function selectSubtitleTrack(player) {{
+    const userLang = navigator.language || navigator.userLanguage;
+    const langCode = userLang ? userLang.slice(0, 2) : null;
+
+    const tracks = player.elements.video.textTracks;
+    let selectedTrackIndex = -1;
+
+    for (let i = 0; i < tracks.length; i++) {{
+      if (tracks[i].language === langCode) {{
+        selectedTrackIndex = i;
+        break;
+      }}
     }}
 
-    function setScormCompleted() {{
-      const api = findAPI(window);
-      if (!api) {{
-        console.warn("SCORM API non trouvée.");
-        return;
-      }}
-      try {{
-        if (api.SetValue) {{
-          api.SetValue("cmi.completion_status", "completed");
-          api.Commit("");
-        }} else if (api.LMSSetValue) {{
-          api.LMSSetValue("cmi.core.lesson_status", "completed");
-          api.LMSCommit("");
-        }}
-      }} catch (e) {{
-        console.error("Erreur SCORM:", e);
-      }}
-    }}
-
-    function selectSubtitleTrack(player) {{
-      const userLang = navigator.language || navigator.userLanguage;
-      const langCode = userLang ? userLang.slice(0, 2) : null;
-
-      const tracks = player.elements.video.textTracks;
-      let selectedTrackIndex = -1;
-
-      // Cherche la piste correspondant à la langue du navigateur
+    if (selectedTrackIndex === -1) {{
       for (let i = 0; i < tracks.length; i++) {{
-        if (tracks[i].language === langCode) {{
+        if (tracks[i].language === 'en') {{
           selectedTrackIndex = i;
           break;
         }}
       }}
-
-      // Si pas trouvée, fallback sur anglais
-      if (selectedTrackIndex === -1) {{
-        for (let i = 0; i < tracks.length; i++) {{
-          if (tracks[i].language === 'en') {{
-            selectedTrackIndex = i;
-            break;
-          }}
-        }}
-      }}
-
-      // Active la piste trouvée, désactive les autres
-      for (let i = 0; i < tracks.length; i++) {{
-        tracks[i].mode = (i === selectedTrackIndex) ? 'showing' : 'disabled';
-      }}
     }}
 
-    video.addEventListener('timeupdate', () => {{
-      if (!video.duration) return;
+    for (let i = 0; i < tracks.length; i++) {{
+      tracks[i].mode = (i === selectedTrackIndex) ? 'showing' : 'disabled';
+    }}
+  }}
 
-      if (video.currentTime > maxPlayed + 0.75) {{
-        video.currentTime = maxPlayed;
-      }} else {{
-        maxPlayed = Math.max(maxPlayed, video.currentTime);
-      }}
+  video.addEventListener('timeupdate', () => {{
+    if (!video.duration) return;
 
-      const playedPercent = (video.currentTime / video.duration) * 100;
-      if (!completed && playedPercent >= completionRate) {{
-        completed = true;
-        document.getElementById('completion-info').style.display = 'block';
-        completionMessage.style.display = 'block';
-        setScormCompleted();
+    if (video.currentTime > maxPlayed + 0.75) {{
+      video.currentTime = maxPlayed;
+    }} else {{
+      maxPlayed = Math.max(maxPlayed, video.currentTime);
+    }}
+
+    const playedPercent = (video.currentTime / video.duration) * 100;
+    if (!completed && playedPercent >= completionRate) {{
+      completed = true;
+      document.getElementById('completion-info').style.display = 'block';
+      completionMessage.style.display = 'block';
+      setScormCompleted();
+    }}
+  }});
+
+  // Partie ajoutée : Initialisation SCORM
+  function initScorm() {{
+    try {{
+      const api = findAPI(window);
+      if (api && api.Initialize) {{
+        api.Initialize("");
+      }} else if (api && api.LMSInitialize) {{
+        api.LMSInitialize("");
       }}
-    }});
-    window.addEventListener('load', () => {{
+    }} catch (e) {{
+      console.warn("Erreur lors de l'initialisation SCORM:", e);
+    }}
+  }}
+
+  function quitScorm() {{
+    try {{
+      const api = findAPI(window);
+      if (api && api.Terminate) {{
+        api.Terminate("");
+      }} else if (api && api.LMSFinish) {{
+        api.LMSFinish("");
+      }}
+    }} catch (e) {{
+      console.warn("Erreur lors de la fermeture SCORM:", e);
+    }}
+  }}
+
+  window.addEventListener('load', () => {{
     initScorm();
-    }});
-    window.onbeforeunload = () => {{
+  }});
+  window.onbeforeunload = () => {{
     quitScorm();
-    }};
+  }};
 
-    const plyrPlayer = new Plyr('#player', {{
+  const plyrPlayer = new Plyr('#player', {{
     speed: {{ 
-    selected: 1, 
-    options: [0.5, 1, 1.25, 1.5] 
+      selected: 1, 
+      options: [0.5, 1, 1.25, 1.5] 
     }},
-      captions: {{
-        active: true,
-        update: true,
-        language: 'auto'
-      }}
-    }});
+    captions: {{
+      active: true,
+      update: true,
+      language: 'auto'
+    }}
+  }});
 
-    plyrPlayer.on('ready', () => {{
-      selectSubtitleTrack(plyrPlayer);
-    }});
-  </script>
+  plyrPlayer.on('ready', () => {{
+    selectSubtitleTrack(plyrPlayer);
+  }});
+</script>
+
 
 </body>
 </html>'''
