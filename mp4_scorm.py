@@ -266,9 +266,6 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
     manifest = create_scorm_manifest(version, scorm_title, video_filename, subtitle_filenames)
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest)
-    wrapper_script = wrapper_scorm12_js if version == "1.2" else wrapper_scorm2004_js
-    with open(os.path.join(output_dir, 'wrapper.js'), 'w', encoding='utf-8') as f:
-        f.write(wrapper_script)
 
 # --- Interface utilisateur Streamlit ---
 
