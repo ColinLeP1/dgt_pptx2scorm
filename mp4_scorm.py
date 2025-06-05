@@ -88,33 +88,37 @@ def create_scorm_manifest(version, title, video_filename, subtitle_filenames):
 # Fonction principale pour créer le package SCORM
 def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
     os.makedirs(output_dir, exist_ok=True)
-    js_dir = os.path.join(output_dir, 'js')
-    video_dir = os.path.join(output_dir, 'video')
-    os.makedirs(js_dir, exist_ok=True)
-    os.makedirs(video_dir, exist_ok=True)
+    
+    # Création des sous-dossiers
+    video_folder = os.path.join(output_dir, 'video')
+    js_folder = os.path.join(output_dir, 'js')
+    os.makedirs(video_folder, exist_ok=True)
+    os.makedirs(js_folder, exist_ok=True)
 
+    # Copier le wrapper dans le sous-dossier js
     wrapper_src = os.path.join(os.path.dirname(__file__), 'wrapper.js')
-    wrapper_dst = os.path.join(js_dir, 'wrapper.js')
+    wrapper_dst = os.path.join(js_folder, 'wrapper.js')
     shutil.copyfile(wrapper_src, wrapper_dst)
 
-    video_filename = os.path.join("video", "video.mp4")
+    # Copier la vidéo dans le sous-dossier vidéo
+    video_filename = "video/video.mp4"
     shutil.copy(video_path, os.path.join(output_dir, video_filename))
 
-
+    # Copier les sous-titres à la racine du package
     subtitle_filenames = []
     for path in subtitle_paths:
         filename = os.path.basename(path)
         subtitle_filenames.append(filename)
         shutil.copy(path, os.path.join(output_dir, filename))
 
-    # Création des balises <track> pour chaque sous-titre
+    # Génération des <track> pour les sous-titres
     track_elements = "\n      ".join([
         f'<track src="{fn}" kind="subtitles" srclang="{lang_code}" label="{pycountry.languages.get(alpha_2=lang_code).name if pycountry.languages.get(alpha_2=lang_code) else lang_code}" />'
         for fn in subtitle_filenames
         if (lang_code := os.path.splitext(fn)[0].split("_")[-1])
     ])
 
-    # Génération du fichier HTML avec Plyr et sous-titres
+    # Génération du HTML
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -130,7 +134,6 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
       padding: 20px;
       text-align: center;
     }}
-
     #completion-info {{
       display: none;
     }}
@@ -157,154 +160,154 @@ def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_
 
   <div class="player-container">
     <video id="player" controls crossorigin>
-      <source src="video/video.mp4" type="video/mp4" />
+      <source src="{video_filename}" type="video/mp4" />
       {track_elements}
       Votre navigateur ne prend pas en charge la vidéo.
     </video>
   </div>
   <script src="js/wrapper.js"></script>
-<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
-<script>
-  const completionRate = {{completion_rate}};
-  const video = document.getElementById('player');
-  const completionMessage = document.getElementById('completion-message');
-  let maxPlayed = 0;
-  let completed = false;
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+  <script>
+    const completionRate = {completion_rate};
+    const video = document.getElementById('player');
+    const completionMessage = document.getElementById('completion-message');
+    let maxPlayed = 0;
+    let completed = false;
 
-  function findAPI(win) {{
-    let attempts = 0;
-    while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {{
-      win = win.parent;
-    }}
-    return win.API_1484_11 || win.API || null;
-  }}
-
-  function setScormCompleted() {{
-    const api = findAPI(window);
-    if (!api) {{
-      console.warn("SCORM API non trouvée.");
-      return;
-    }}
-    try {{
-      if (api.SetValue) {{
-        api.SetValue("cmi.completion_status", "completed");
-        api.Commit("");
-      }} else if (api.LMSSetValue) {{
-        api.LMSSetValue("cmi.core.lesson_status", "completed");
-        api.LMSCommit("");
+    function findAPI(win) {{
+      let attempts = 0;
+      while (win && !win.API && !win.API_1484_11 && win.parent && win !== win.parent && attempts++ < 10) {{
+        win = win.parent;
       }}
-    }} catch (e) {{
-      console.error("Erreur SCORM:", e);
+      return win.API_1484_11 || win.API || null;
     }}
-  }}
 
-  function selectSubtitleTrack(player) {{
-    const userLang = navigator.language || navigator.userLanguage;
-    const langCode = userLang ? userLang.slice(0, 2) : null;
-
-    const tracks = player.elements.video.textTracks;
-    let selectedTrackIndex = -1;
-
-    for (let i = 0; i < tracks.length; i++) {{
-      if (tracks[i].language === langCode) {{
-        selectedTrackIndex = i;
-        break;
+    function setScormCompleted() {{
+      const api = findAPI(window);
+      if (!api) {{
+        console.warn("SCORM API non trouvée.");
+        return;
+      }}
+      try {{
+        if (api.SetValue) {{
+          api.SetValue("cmi.completion_status", "completed");
+          api.Commit("");
+        }} else if (api.LMSSetValue) {{
+          api.LMSSetValue("cmi.core.lesson_status", "completed");
+          api.LMSCommit("");
+        }}
+      }} catch (e) {{
+        console.error("Erreur SCORM:", e);
       }}
     }}
 
-    if (selectedTrackIndex === -1) {{
+    function selectSubtitleTrack(player) {{
+      const userLang = navigator.language || navigator.userLanguage;
+      const langCode = userLang ? userLang.slice(0, 2) : null;
+
+      const tracks = player.elements.video.textTracks;
+      let selectedTrackIndex = -1;
+
       for (let i = 0; i < tracks.length; i++) {{
-        if (tracks[i].language === 'en') {{
+        if (tracks[i].language === langCode) {{
           selectedTrackIndex = i;
           break;
         }}
       }}
-    }}
 
-    for (let i = 0; i < tracks.length; i++) {{
-      tracks[i].mode = (i === selectedTrackIndex) ? 'showing' : 'disabled';
-    }}
-  }}
-
-  video.addEventListener('timeupdate', () => {{
-    if (!video.duration) return;
-
-    if (video.currentTime > maxPlayed + 0.75) {{
-      video.currentTime = maxPlayed;
-    }} else {{
-      maxPlayed = Math.max(maxPlayed, video.currentTime);
-    }}
-
-    const playedPercent = (video.currentTime / video.duration) * 100;
-    if (!completed && playedPercent >= completionRate) {{
-      completed = true;
-      document.getElementById('completion-info').style.display = 'block';
-      completionMessage.style.display = 'block';
-      setScormCompleted();
-    }}
-  }});
-
-  // Partie ajoutée : Initialisation SCORM
-  function initScorm() {{
-    try {{
-      const api = findAPI(window);
-      if (api && api.Initialize) {{
-        api.Initialize("");
-      }} else if (api && api.LMSInitialize) {{
-        api.LMSInitialize("");
+      if (selectedTrackIndex === -1) {{
+        for (let i = 0; i < tracks.length; i++) {{
+          if (tracks[i].language === 'en') {{
+            selectedTrackIndex = i;
+            break;
+          }}
+        }}
       }}
-    }} catch (e) {{
-      console.warn("Erreur lors de l'initialisation SCORM:", e);
-    }}
-  }}
 
-  function quitScorm() {{
-    try {{
-      const api = findAPI(window);
-      if (api && api.Terminate) {{
-        api.Terminate("");
-      }} else if (api && api.LMSFinish) {{
-        api.LMSFinish("");
+      for (let i = 0; i < tracks.length; i++) {{
+        tracks[i].mode = (i === selectedTrackIndex) ? 'showing' : 'disabled';
       }}
-    }} catch (e) {{
-      console.warn("Erreur lors de la fermeture SCORM:", e);
     }}
-  }}
 
-  window.addEventListener('load', () => {{
-    initScorm();
-  }});
-  window.onbeforeunload = () => {{
-    quitScorm();
-  }};
+    video.addEventListener('timeupdate', () => {{
+      if (!video.duration) return;
 
-  const plyrPlayer = new Plyr('#player', {{
-    speed: {{ 
-      selected: 1, 
-      options: [0.5, 1, 1.25, 1.5] 
-    }},
-    captions: {{
-      active: true,
-      update: true,
-      language: 'auto'
+      if (video.currentTime > maxPlayed + 0.75) {{
+        video.currentTime = maxPlayed;
+      }} else {{
+        maxPlayed = Math.max(maxPlayed, video.currentTime);
+      }}
+
+      const playedPercent = (video.currentTime / video.duration) * 100;
+      if (!completed && playedPercent >= completionRate) {{
+        completed = true;
+        document.getElementById('completion-info').style.display = 'block';
+        completionMessage.style.display = 'block';
+        setScormCompleted();
+      }}
+    }});
+
+    function initScorm() {{
+      try {{
+        const api = findAPI(window);
+        if (api && api.Initialize) {{
+          api.Initialize("");
+        }} else if (api && api.LMSInitialize) {{
+          api.LMSInitialize("");
+        }}
+      }} catch (e) {{
+        console.warn("Erreur lors de l'initialisation SCORM:", e);
+      }}
     }}
-  }});
 
-  plyrPlayer.on('ready', () => {{
-    selectSubtitleTrack(plyrPlayer);
-  }});
-</script>
+    function quitScorm() {{
+      try {{
+        const api = findAPI(window);
+        if (api && api.Terminate) {{
+          api.Terminate("");
+        }} else if (api && api.LMSFinish) {{
+          api.LMSFinish("");
+        }}
+      }} catch (e) {{
+        console.warn("Erreur lors de la fermeture SCORM:", e);
+      }}
+    }}
 
+    window.addEventListener('load', () => {{
+      initScorm();
+    }});
+    window.onbeforeunload = () => {{
+      quitScorm();
+    }};
 
+    const plyrPlayer = new Plyr('#player', {{
+      speed: {{
+        selected: 1,
+        options: [0.5, 1, 1.25, 1.5]
+      }},
+      captions: {{
+        active: true,
+        update: true,
+        language: 'auto'
+      }}
+    }});
+
+    plyrPlayer.on('ready', () => {{
+      selectSubtitleTrack(plyrPlayer);
+    }});
+  </script>
 </body>
-</html>'''
+</html>
+'''
 
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html_content)
 
+    # Génération du manifeste SCORM
     manifest = create_scorm_manifest(version, scorm_title, video_filename, subtitle_filenames)
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest)
+
 
 # --- Interface utilisateur Streamlit ---
 
