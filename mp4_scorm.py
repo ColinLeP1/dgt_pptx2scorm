@@ -88,7 +88,7 @@ def create_scorm_manifest(version, title, video_filename, subtitle_filenames):
 # Fonction principale pour créer le package SCORM
 def create_scorm_package(video_path, subtitle_paths, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
     os.makedirs(output_dir, exist_ok=True)
-        js_dir = os.path.join(output_dir, 'js')
+    js_dir = os.path.join(output_dir, 'js')
     video_dir = os.path.join(output_dir, 'video')
     os.makedirs(js_dir, exist_ok=True)
     os.makedirs(video_dir, exist_ok=True)
