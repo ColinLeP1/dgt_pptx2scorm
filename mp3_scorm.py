@@ -359,10 +359,12 @@ scorm_title = st.text_input("Titre du package SCORM :", value=uploaded_file.name
 if uploaded_file:
     temp_dir = f"temp_scorm_{uuid.uuid4()}"
     os.makedirs(temp_dir, exist_ok=True)
+    output_dir = f"scorm_output_{uuid.uuid4()}"
     audio_dir = os.path.join(output_dir, "audio")
     js_dir = os.path.join(output_dir, "js")
     os.makedirs(audio_dir, exist_ok=True)
     os.makedirs(js_dir, exist_ok=True)
+
 
 
     mp3_path = os.path.join(temp_dir, uploaded_file.name)
@@ -404,7 +406,6 @@ if uploaded_file:
             st.error("Veuillez sélectionner au moins une version SCORM (1.2 ou 2004).")
         else:
             selected_version = "1.2" if scorm_12 else "2004"
-            output_dir = f"scorm_output_{uuid.uuid4()}"
             create_scorm_package(mp3_path, subtitle_paths, output_dir, selected_version, scorm_title, completion_rate)
             shutil.make_archive(output_dir, 'zip', output_dir)
             with open(f"{output_dir}.zip", "rb") as f:
