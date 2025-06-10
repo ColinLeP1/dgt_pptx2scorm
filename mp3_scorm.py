@@ -47,8 +47,8 @@ def create_scorm_manifest(version, title, mp3_filename, subtitle_filenames):
   <resources>
     <resource identifier="RES1" type="webcontent" adlcp:scormtype="sco" href="index.html">
       <file href="index.html"/>
-      <file href="audio/{mp3_filename}"/>{subtitle_entries}
-      <file href="js/wrapper.js"/>
+      <file href="{mp3_filename}"/>{subtitle_entries}
+      <file href="scorm_functions.js"/>
     </resource>
   </resources>
 </manifest>'''
@@ -91,8 +91,9 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
         os.makedirs(output_dir)
 
     mp3_filename = os.path.basename(mp3_path)
-    shutil.copy(mp3_path, os.path.join(audio_dir, mp3_filename))
-    shutil.copy("wrapper.js", os.path.join(js_dir, "wrapper.js"))
+    shutil.copy(audio_file_path, os.path.join(output_dir, f"{lang_code}.mp3"))
+    shutil.copy("scorm_functions.js", os.path.join(output_dir, "scorm_functions.js"))
+
 
 
     subtitle_filenames = []
@@ -113,7 +114,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   <meta charset="UTF-8" />
   <title>{scorm_title}</title>
   <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-  <script src="js/wrapper.js"></script>
+  <script src="scorm_functions.js"></script>
   <style>
   body {{
     font-family: Arial, sans-serif;
@@ -187,7 +188,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
 
   <div class="player-container">
     <video id="player" controls crossorigin>
-      <source src="audio/{mp3_filename}" type="audio/mp3" />
+      <source src="{mp3_filename}" type="mp3" />
       {track_elements}
       Your browser does not support the audio element.
     </video>
@@ -360,10 +361,6 @@ if uploaded_file:
     temp_dir = f"temp_scorm_{uuid.uuid4()}"
     os.makedirs(temp_dir, exist_ok=True)
     output_dir = f"scorm_output_{uuid.uuid4()}"
-    audio_dir = os.path.join(output_dir, "audio")
-    js_dir = os.path.join(output_dir, "js")
-    os.makedirs(audio_dir, exist_ok=True)
-    os.makedirs(js_dir, exist_ok=True)
 
 
 
