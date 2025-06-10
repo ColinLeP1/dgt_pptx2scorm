@@ -91,7 +91,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
         os.makedirs(output_dir)
 
     mp3_filename = os.path.basename(mp3_path)
-    shutil.copy(audio_file_path, os.path.join(output_dir, f"{lang_code}.mp3"))
+    shutil.copy(mp3_filename, os.path.join(output_dir, f"{lang_code}.mp3"))
     shutil.copy("scorm_functions.js", os.path.join(output_dir, "scorm_functions.js"))
 
 
