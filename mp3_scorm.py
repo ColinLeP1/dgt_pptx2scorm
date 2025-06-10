@@ -91,7 +91,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
         os.makedirs(output_dir)
 
     mp3_filename = os.path.basename(mp3_path)
-    shutil.copy(mp3_filename, os.path.join(output_dir, f"{lang_code}.mp3"))
+    shutil.copy(mp3_path, os.path.join(output_dir, f"{lang_code}.mp3"))
     shutil.copy("scorm_functions.js", os.path.join(output_dir, "scorm_functions.js"))
 
 
@@ -315,7 +315,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html_content)
 
-    manifest_xml = create_scorm_manifest(version, scorm_title, f"audio/{mp3_filename}", [os.path.basename(p) for p in subtitle_paths])
+    manifest_xml = create_scorm_manifest(version, scorm_title, mp3_filename, [os.path.basename(p) for p in subtitle_paths])
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest_xml)
 
