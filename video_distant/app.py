@@ -88,7 +88,6 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
   <div class="player-container">
     <video id="player" controls crossorigin>
       <source src="{video_url}" type="video/mp4" />
-      {track_elements}
     </video>
   </div>
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
