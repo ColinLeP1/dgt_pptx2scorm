@@ -57,12 +57,6 @@ def create_scorm_package(video_url, subtitle_paths, output_dir, version, scorm_t
         subtitle_filenames.append(filename)
         shutil.copy(path, os.path.join(output_dir, filename))
 
-    track_elements = "\n      ".join([
-        f'<track src="{fn}" kind="subtitles" srclang="{lang_code}" label="{pycountry.languages.get(alpha_2=lang_code).name if pycountry.languages.get(alpha_2=lang_code) else lang_code}" />'
-        for fn in subtitle_filenames
-        if (lang_code := os.path.splitext(fn)[0].split("_")[-1])
-    ])
-
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -115,13 +109,6 @@ def create_scorm_package(video_url, subtitle_paths, output_dir, version, scorm_t
       captions: {{ active: true, language: 'auto', update: true }},
       speed: {{ selected: 1, options: [0.5, 1, 1.25, 1.5] }}
     }});
-
-    function selectSubtitleTrack() {{
-      const lang = (navigator.language || 'en').slice(0, 2);
-      const tracks = video.textTracks;
-      for (let i = 0; i < tracks.length; i++) {{
-        tracks[i].mode = (tracks[i].language === lang) ? 'showing' : 'disabled';
-      }}
     }}
 
     player.on('ready', selectSubtitleTrack);
@@ -154,25 +141,9 @@ def create_scorm_package(video_url, subtitle_paths, output_dir, version, scorm_t
 # Interface Streamlit
 
 st.title("Convertisseur Vidéo Distante → SCORM")
-video_url = st.text_input("URL de la vidéo (MP4 en ligne)", placeholder="https://exemple.com/video.mp4")
+video_url = st.text_input("URL de la vidéo", placeholder="https://exemple.com/video.mp4")
 
-add_subtitles = st.checkbox("Ajouter des sous-titres")
 
-languages = [(lang.alpha_2, lang.name) for lang in pycountry.languages if hasattr(lang, 'alpha_2')]
-languages = sorted(languages, key=lambda x: x[1])
-language_options = [f"{name} ({code})" for code, name in languages]
-code_map = {f"{name} ({code})": code for code, name in languages}
-
-selected_languages = []
-subtitle_files_dict = {}
-
-if add_subtitles:
-    selected_labels = st.multiselect("Langues des sous-titres :", options=language_options)
-    selected_languages = [code_map[label] for label in selected_labels]
-    for lang_code in selected_languages:
-        subtitle_file = st.file_uploader(f"Sous-titre pour {lang_code}", type=["srt", "vtt"], key=f"sub_{lang_code}")
-        if subtitle_file:
-            subtitle_files_dict[lang_code] = subtitle_file
 
 version = st.radio("Version SCORM :", options=["1.2", "2004"])
 scorm_title = st.text_input("Titre SCORM :", value="Mon Cours Vidéo SCORM")
@@ -181,27 +152,11 @@ if video_url:
     temp_dir = f"temp_scorm_{uuid.uuid4()}"
     os.makedirs(temp_dir, exist_ok=True)
 
-    subtitle_paths = []
-    for lang_code, file in subtitle_files_dict.items():
-        ext = os.path.splitext(file.name)[1].lower()
-        basename = os.path.splitext(file.name)[0]
-        new_basename = f"{basename}_{lang_code}" if f"_{lang_code}" not in basename else basename
-        filename = f"{new_basename}.vtt"
-        local_path = os.path.join(temp_dir, filename)
-
-        with open(local_path if ext == '.vtt' else os.path.join(temp_dir, f"{new_basename}.srt"), "wb") as f:
-            f.write(file.getbuffer())
-
-        if ext == '.srt':
-            srt_to_vtt(os.path.join(temp_dir, f"{new_basename}.srt"), local_path)
-
-        subtitle_paths.append(local_path)
-
     completion_rate = st.slider("Taux de complétion requis (%) :", 10, 100, 80, step=5)
 
     if st.button("Créer le package SCORM"):
         output_dir = f"scorm_output_{uuid.uuid4()}"
-        create_scorm_package(video_url, subtitle_paths, output_dir, version, scorm_title, completion_rate)
+        create_scorm_package(video_path, [], output_dir, version, scorm_title, completion_rate)
         shutil.make_archive(output_dir, 'zip', output_dir)
         with open(f"{output_dir}.zip", "rb") as f:
             st.download_button("📦 Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
