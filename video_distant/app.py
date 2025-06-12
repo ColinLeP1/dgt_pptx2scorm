@@ -109,7 +109,7 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
   <div class="player-container">
     <div id="player"></div>
   </div>
-  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+    <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
     const completionRate = 80;
     const message = document.getElementById('completion-message');
@@ -124,10 +124,9 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
       controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
     }});
 
-    // La durée n'est pas toujours accessible, donc on simule une complétion simple avec le temps écoulé (exemple)
-    player.on('timeupdate', event => {{
-      const currentTime = event.detail.plyr.currentTime;
-      const duration = event.detail.plyr.duration;
+    player.on('timeupdate', () => {{
+      const currentTime = player.currentTime;
+      const duration = player.duration;
       if (!completed && duration > 0 && (currentTime / duration) * 100 >= completionRate) {{
         completed = true;
         message.style.display = 'block';
