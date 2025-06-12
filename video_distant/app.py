@@ -139,7 +139,7 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
     os.makedirs(js_dir, exist_ok=True)
 
     # Copier le vrai wrapper.js dans le package
-    src_wrapper_path = 'js/wrapper.js'  # chemin relatif de ton wrapper.js par rapport à app.py
+    src_wrapper_path = 'wrapper.js'  # chemin relatif de ton wrapper.js par rapport à app.py
     dst_wrapper_path = os.path.join(js_dir, 'wrapper.js')
 
     if not os.path.isfile(src_wrapper_path):
