@@ -17,8 +17,7 @@ def srt_to_vtt(srt_path, vtt_path):
             vtt_file.write(line)
 
 # Fonction pour générer le manifeste SCORM
-def create_scorm_manifest(version, title, video_url, subtitle_filenames):
-    subtitle_entries = "".join([f'\n      <file href="{fn}"/>' for fn in subtitle_filenames]) if subtitle_filenames else ""
+def create_scorm_manifest(version, title, video_url):
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="com.example.scorm" version="1.2"
   xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
@@ -42,7 +41,7 @@ def create_scorm_manifest(version, title, video_url, subtitle_filenames):
   </organizations>
   <resources>
     <resource identifier="RES1" type="webcontent" adlcp:scormtype="sco" href="index.html">
-      <file href="index.html"/>{subtitle_entries}
+      <file href="index.html"/>
     </resource>
   </resources>
 </manifest>'''
@@ -104,7 +103,7 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
     }});
     }}
 
-    player.on('ready', selectSubtitleTrack);
+    player.on('ready');
 
     video.addEventListener('timeupdate', () => {{
       if (!video.duration) return;
@@ -127,7 +126,7 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
     with open(os.path.join(output_dir, 'js/wrapper.js'), 'w') as f:
         f.write("// wrapper.js SCORM")
 
-    manifest = create_scorm_manifest(version, scorm_title, video_url, subtitle_filenames)
+    manifest = create_scorm_manifest(version, scorm_title, video_url)
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest)
 
