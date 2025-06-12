@@ -51,12 +51,6 @@ def create_scorm_manifest(version, title, video_url, subtitle_filenames):
 def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
     os.makedirs(output_dir, exist_ok=True)
 
-    subtitle_filenames = []
-    for path in subtitle_paths:
-        filename = os.path.basename(path)
-        subtitle_filenames.append(filename)
-        shutil.copy(path, os.path.join(output_dir, filename))
-
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
 <head>
