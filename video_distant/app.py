@@ -107,8 +107,10 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
     const completionRate = {completion_rate};
     const message = document.getElementById('completion-message');
     let completed = false;
-    let maxTimeReached = 0;  // temps max atteint (en secondes)
-    let seekingBlocked = false;  // flag pour éviter boucle infinie dans seeking
+
+    // Déclaration globale des variables pour contrôle du seeking
+    let maxTimeReached = 0;
+    let seekingBlocked = false;
 
     const player = new Plyr('#player', {{
       type: '{provider}',
@@ -130,7 +132,7 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
         maxTimeReached = currentTime;
       }}
 
-      if (duration > 0 && !completed && (currentTime / duration) * 100 >= completionRate) {{
+      if (!completed && duration > 0 && (currentTime / duration) * 100 >= completionRate) {{
         completed = true;
         message.style.display = 'block';
         console.log('Vidéo complétée');
@@ -152,8 +154,6 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
   </script>
 </body>
 </html>"""
-
-
 
     # Créer dossier js dans le package
     js_dir = os.path.join(output_dir, 'js')
