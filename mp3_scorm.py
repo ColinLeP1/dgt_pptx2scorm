@@ -187,8 +187,8 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
   <p id="completion-message">Vous avez atteint le seuil de complétion requis 🎉</p>
 
   <div class="player-container">
-    <audio id="player" controls>
-      <source src="{mp3_filename}" type="audio/mpeg" />
+    <audio id="player" controls crossorigin>
+      <source src="{mp3_filename}" type="mp3" />
       {track_elements}
       Your browser does not support the audio element.
     </audio>
