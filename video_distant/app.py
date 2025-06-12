@@ -156,7 +156,7 @@ if video_url:
 
     if st.button("Créer le package SCORM"):
         output_dir = f"scorm_output_{uuid.uuid4()}"
-        create_scorm_package(video_path, [], output_dir, version, scorm_title, completion_rate)
+        create_scorm_package(video_url, [], output_dir, version, scorm_title, completion_rate)
         shutil.make_archive(output_dir, 'zip', output_dir)
         with open(f"{output_dir}.zip", "rb") as f:
             st.download_button("📦 Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
