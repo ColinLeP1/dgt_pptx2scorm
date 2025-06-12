@@ -92,13 +92,13 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
   <p id="completion-message">🎉 Vous avez terminé la vidéo</p>
   <div class="player-container">
     <div class="plyr__video-embed" id="player">
-  <iframe
-    src="https://www.youtube.com/embed/{video_id}?origin=localhost&iv_load_policy=3&modestbranding=1"
-    allowfullscreen
-    allowtransparency
-    allow="autoplay"
-  ></iframe>
-</div>
+      <iframe
+        src="https://www.youtube.com/embed/{video_id}?origin=localhost&iv_load_policy=3&modestbranding=1"
+        allowfullscreen
+        allowtransparency
+        allow="autoplay"
+      ></iframe>
+    </div>
   </div>
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
@@ -109,13 +109,13 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
     let completed = false;
 
     const player = new Plyr('#player', {{
-  type: '{provider}',
-  sources: [{{
-    src: '{video_id}',
-    provider: '{provider}'
-  }}],
-  controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
-}});
+      type: '{provider}',
+      sources: [{{
+        src: '{video_id}',
+        provider: '{provider}'
+      }}],
+      controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
+    }});
 
     player.on('ready', () => console.log('Player prêt'));
     player.on('error', event => console.error('Erreur du player', event));
@@ -127,19 +127,31 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
         completed = true;
         message.style.display = 'block';
         console.log('Vidéo complétée');
+        // Ici, tu peux appeler des fonctions SCORM pour valider la complétion
       }}
     }});
   </script>
 </body>
 </html>'''
 
-    os.makedirs(os.path.join(output_dir, 'js'), exist_ok=True)
+    # Créer dossier js dans le package
+    js_dir = os.path.join(output_dir, 'js')
+    os.makedirs(js_dir, exist_ok=True)
+
+    # Copier le vrai wrapper.js dans le package
+    src_wrapper_path = 'wrapper.js'  # chemin relatif de ton wrapper.js par rapport à app.py
+    dst_wrapper_path = os.path.join(js_dir, 'wrapper.js')
+
+    if not os.path.isfile(src_wrapper_path):
+        raise FileNotFoundError(f"Le fichier wrapper.js est introuvable au chemin : {src_wrapper_path}")
+
+    shutil.copy(src_wrapper_path, dst_wrapper_path)
+
+    # Écrire le fichier index.html
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html_content)
 
-    with open(os.path.join(output_dir, 'js/wrapper.js'), 'w') as f:
-        f.write("// wrapper.js SCORM")
-
+    # Créer le fichier imsmanifest.xml
     manifest = create_scorm_manifest(version, scorm_title)
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest)
