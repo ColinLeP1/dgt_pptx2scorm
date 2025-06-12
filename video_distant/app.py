@@ -17,7 +17,7 @@ def srt_to_vtt(srt_path, vtt_path):
             vtt_file.write(line)
 
 # Fonction pour générer le manifeste SCORM
-def create_scorm_manifest(version, title, video_url):
+def create_scorm_manifest(version, title):
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="com.example.scorm" version="1.2"
   xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
@@ -46,9 +46,28 @@ def create_scorm_manifest(version, title, video_url):
   </resources>
 </manifest>'''
 
-# Fonction pour créer le SCORM
-def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
+# Nouvelle fonction pour extraire l'ID et provider YouTube/Dailymotion
+def extract_video_info(url):
+    url = url.strip()
+    import re
+    if "youtube.com/watch" in url or "youtu.be/" in url:
+        m = re.search(r'(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})', url)
+        video_id = m.group(1) if m else None
+        return video_id, "youtube"
+    elif "dailymotion.com/video" in url:
+        m = re.search(r'dailymotion\.com/video/([A-Za-z0-9]+)', url)
+        video_id = m.group(1) if m else None
+        return video_id, "dailymotion"
+    else:
+        return None, None
+
+# Nouvelle version de create_scorm_package adaptée à Youtube/Dailymotion Plyr iframe
+def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours Vidéo SCORM"):
     os.makedirs(output_dir, exist_ok=True)
+
+    video_id, provider = extract_video_info(video_url)
+    if not video_id or not provider:
+        raise ValueError("URL vidéo non supportée. Fournissez une URL YouTube ou Dailymotion valide.")
 
     html_content = f'''<!DOCTYPE html>
 <html lang="fr">
@@ -70,8 +89,11 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
       max-width: 800px;
       margin: auto;
     }}
-    video {{
+    #player {{
+      aspect-ratio: 16 / 9;
       width: 100%;
+      max-width: 800px;
+      margin: auto;
     }}
     #completion-message {{
       margin-top: 20px;
@@ -85,48 +107,44 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
   <h1>{scorm_title}</h1>
   <p id="completion-message">🎉 Vous avez terminé la vidéo</p>
   <div class="player-container">
-    <video id="player" controls crossorigin>
-      <source src="{video_url}" type="video/mp4" />
-    </video>
+    <div id="player"></div>
   </div>
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
-    const completionRate = {completion_rate};
-    const video = document.getElementById('player');
+    const completionRate = 80;
     const message = document.getElementById('completion-message');
-    let maxPlayed = 0;
     let completed = false;
 
     const player = new Plyr('#player', {{
-      captions: {{ active: true, language: 'auto', update: true }},
-      speed: {{ selected: 1, options: [0.5, 1, 1.25, 1.5] }}
+      type: '{provider}',
+      sources: [{{
+        src: '{video_id}',
+        provider: '{provider}'
+      }}],
+      controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
     }});
-    }}
 
-    player.on('ready');
-
-    video.addEventListener('timeupdate', () => {{
-      if (!video.duration) return;
-      maxPlayed = Math.max(maxPlayed, video.currentTime);
-      if (!completed && (video.currentTime / video.duration) * 100 >= completionRate) {{
+    // La durée n'est pas toujours accessible, donc on simule une complétion simple avec le temps écoulé (exemple)
+    player.on('timeupdate', event => {{
+      const currentTime = event.detail.plyr.currentTime;
+      const duration = event.detail.plyr.duration;
+      if (!completed && duration > 0 && (currentTime / duration) * 100 >= completionRate) {{
         completed = true;
         message.style.display = 'block';
       }}
     }});
   </script>
 </body>
-</html>
-'''
-    # Créer les fichiers
+</html>'''
+
     os.makedirs(os.path.join(output_dir, 'js'), exist_ok=True)
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html_content)
 
-    # Copie d’un wrapper.js vide si nécessaire
     with open(os.path.join(output_dir, 'js/wrapper.js'), 'w') as f:
         f.write("// wrapper.js SCORM")
 
-    manifest = create_scorm_manifest(version, scorm_title, video_url)
+    manifest = create_scorm_manifest(version, scorm_title)
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest)
 
@@ -135,22 +153,19 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
 st.title("Convertisseur Vidéo Distante → SCORM")
 video_url = st.text_input("URL de la vidéo", placeholder="https://exemple.com/video.mp4")
 
-
-
 version = st.radio("Version SCORM :", options=["1.2", "2004"])
 scorm_title = st.text_input("Titre SCORM :", value="Mon Cours Vidéo SCORM")
 
 if video_url:
-    temp_dir = f"temp_scorm_{uuid.uuid4()}"
-    os.makedirs(temp_dir, exist_ok=True)
-
     completion_rate = st.slider("Taux de complétion requis (%) :", 10, 100, 80, step=5)
 
     if st.button("Créer le package SCORM"):
         output_dir = f"scorm_output_{uuid.uuid4()}"
-        create_scorm_package(video_url, output_dir, version, scorm_title, completion_rate)
-        shutil.make_archive(output_dir, 'zip', output_dir)
-        with open(f"{output_dir}.zip", "rb") as f:
-            st.download_button("📦 Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
-        shutil.rmtree(temp_dir)
-        shutil.rmtree(output_dir)
+        try:
+            create_scorm_package(video_url, output_dir, version, scorm_title)
+            shutil.make_archive(output_dir, 'zip', output_dir)
+            with open(f"{output_dir}.zip", "rb") as f:
+                st.download_button("📦 Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
+            shutil.rmtree(output_dir)
+        except Exception as e:
+            st.error(f"Erreur : {e}")
