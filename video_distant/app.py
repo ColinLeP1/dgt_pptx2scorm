@@ -109,12 +109,13 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
     let completed = false;
 
     const player = new Plyr('#player', {{
-      type: '{provider}',
-      const player = new Plyr('#player', {
+  type: '{provider}',
+  sources: [{{
+    src: '{video_id}',
+    provider: '{provider}'
+  }}],
   controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
-});
-      controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
-    }});
+}});
 
     player.on('ready', () => console.log('Player prêt'));
     player.on('error', event => console.error('Erreur du player', event));
