@@ -53,7 +53,7 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
     if not video_id or not provider:
         raise ValueError("URL vidéo non supportée. Fournissez une URL YouTube ou Dailymotion valide.")
 
-        html_content = f'''<!DOCTYPE html>
+    html_content = f'''<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
