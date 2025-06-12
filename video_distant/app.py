@@ -91,7 +91,14 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
   <h1>{scorm_title}</h1>
   <p id="completion-message">🎉 Vous avez terminé la vidéo</p>
   <div class="player-container">
-    <div id="player"></div>
+    <div class="plyr__video-embed" id="player">
+  <iframe
+    src="https://www.youtube.com/embed/{video_id}?origin=localhost&iv_load_policy=3&modestbranding=1"
+    allowfullscreen
+    allowtransparency
+    allow="autoplay"
+  ></iframe>
+</div>
   </div>
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
@@ -103,10 +110,9 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
 
     const player = new Plyr('#player', {{
       type: '{provider}',
-      sources: [{{
-        src: '{video_id}',
-        provider: '{provider}'
-      }}],
+      const player = new Plyr('#player', {
+  controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
+});
       controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
     }});
 
