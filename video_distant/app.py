@@ -57,7 +57,7 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <script src="js/wrapper.js"></script>
+  <script src="wrapper.js"></script>
   <title>{scorm_title}</title>
   <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <style>
