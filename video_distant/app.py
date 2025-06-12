@@ -2,19 +2,7 @@ import streamlit as st
 import os
 import shutil
 import uuid
-import pycountry
-import requests
-
-# Fonction pour convertir .srt en .vtt
-def srt_to_vtt(srt_path, vtt_path):
-    with open(srt_path, 'r', encoding='utf-8') as srt_file:
-        lines = srt_file.readlines()
-    with open(vtt_path, 'w', encoding='utf-8') as vtt_file:
-        vtt_file.write("WEBVTT\n\n")
-        for line in lines:
-            if '-->' in line:
-                line = line.replace(',', '.')
-            vtt_file.write(line)
+import re
 
 # Fonction pour générer le manifeste SCORM
 def create_scorm_manifest(version, title):
@@ -46,10 +34,9 @@ def create_scorm_manifest(version, title):
   </resources>
 </manifest>'''
 
-# Nouvelle fonction pour extraire l'ID et provider YouTube/Dailymotion
+# Fonction pour extraire l'ID vidéo et provider YouTube/Dailymotion
 def extract_video_info(url):
     url = url.strip()
-    import re
     if "youtube.com/watch" in url or "youtu.be/" in url:
         m = re.search(r'(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})', url)
         video_id = m.group(1) if m else None
@@ -61,8 +48,8 @@ def extract_video_info(url):
     else:
         return None, None
 
-# Nouvelle version de create_scorm_package adaptée à Youtube/Dailymotion Plyr iframe
-def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours Vidéo SCORM"):
+# Fonction pour créer le package SCORM avec Plyr iframe (YouTube/Dailymotion)
+def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
     os.makedirs(output_dir, exist_ok=True)
 
     video_id, provider = extract_video_info(video_url)
@@ -109,9 +96,9 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
   <div class="player-container">
     <div id="player"></div>
   </div>
-    <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
-    const completionRate = 80;
+    const completionRate = {completion_rate};
     const message = document.getElementById('completion-message');
     let completed = false;
 
@@ -124,9 +111,10 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
       controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
     }});
 
-    player.on('timeupdate', () => {{
-      const currentTime = player.currentTime;
-      const duration = player.duration;
+    // Plyr ne remonte pas toujours la durée des iframes, on utilise un intervalle simple
+    player.on('timeupdate', event => {{
+      const currentTime = event.detail.plyr.currentTime;
+      const duration = event.detail.plyr.duration || 0;
       if (!completed && duration > 0 && (currentTime / duration) * 100 >= completionRate) {{
         completed = true;
         message.style.display = 'block';
@@ -161,7 +149,7 @@ if video_url:
     if st.button("Créer le package SCORM"):
         output_dir = f"scorm_output_{uuid.uuid4()}"
         try:
-            create_scorm_package(video_url, output_dir, version, scorm_title)
+            create_scorm_package(video_url, output_dir, version, scorm_title, completion_rate)
             shutil.make_archive(output_dir, 'zip', output_dir)
             with open(f"{output_dir}.zip", "rb") as f:
                 st.download_button("📦 Télécharger le package SCORM", f, file_name=f"{scorm_title}.zip")
