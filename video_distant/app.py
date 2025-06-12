@@ -53,11 +53,11 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
     if not video_id or not provider:
         raise ValueError("URL vidéo non supportée. Fournissez une URL YouTube ou Dailymotion valide.")
 
-    html_content = f'''<!DOCTYPE html>
+        html_content = f'''<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <script src="wrapper.js"></script>
+  <script src="js/wrapper.js"></script>
   <title>{scorm_title}</title>
   <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <style>
@@ -107,6 +107,8 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
     const completionRate = {completion_rate};
     const message = document.getElementById('completion-message');
     let completed = false;
+    let maxTimeReached = 0;  // temps max atteint (en secondes)
+    let seekingBlocked = false;  // flag pour éviter boucle infinie dans seeking
 
     const player = new Plyr('#player', {{
       type: '{provider}',
@@ -123,6 +125,12 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
     player.on('timeupdate', event => {{
       const currentTime = event.detail.plyr.currentTime;
       const duration = event.detail.plyr.duration || 0;
+
+      // Met à jour maxTimeReached si on avance dans la vidéo
+      if(currentTime > maxTimeReached) {{
+        maxTimeReached = currentTime;
+      }}
+
       if (!completed && duration > 0 && (currentTime / duration) * 100 >= completionRate) {{
         completed = true;
         message.style.display = 'block';
@@ -130,9 +138,23 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
         // Ici, tu peux appeler des fonctions SCORM pour valider la complétion
       }}
     }});
+
+    player.on('seeking', event => {{
+      if (seekingBlocked) {{
+        seekingBlocked = false;
+        return;
+      }}
+      const seekTime = player.currentTime;
+      if (seekTime > maxTimeReached) {{
+        seekingBlocked = true;
+        player.currentTime = maxTimeReached;  // bloquer l’avance, remettre au maxTimeReached
+        console.log(`Avance bloquée à ${maxTimeReached.toFixed(2)}s`);
+      }}
+    }});
   </script>
 </body>
 </html>'''
+
 
     # Créer dossier js dans le package
     js_dir = os.path.join(output_dir, 'js')
