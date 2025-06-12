@@ -48,7 +48,7 @@ def create_scorm_manifest(version, title, video_url, subtitle_filenames):
 </manifest>'''
 
 # Fonction pour créer le SCORM
-def create_scorm_package(video_url, subtitle_paths, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
+def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
     os.makedirs(output_dir, exist_ok=True)
 
     subtitle_filenames = []
