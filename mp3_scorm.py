@@ -188,7 +188,7 @@ def create_scorm_package(mp3_path, subtitle_paths, output_dir, version, scorm_ti
 
   <div class="player-container">
     <audio id="player" controls crossorigin>
-      <source src="{mp3_filename}" type="mp3" />
+      <source src="{mp3_filename}" type="audio/mpeg" />
       {track_elements}
       Your browser does not support the audio element.
     </audio>
