@@ -4,7 +4,6 @@ import shutil
 import uuid
 import re
 
-# Fonction pour générer le manifeste SCORM
 def create_scorm_manifest(version, title):
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="com.example.scorm" version="1.2"
@@ -34,7 +33,6 @@ def create_scorm_manifest(version, title):
   </resources>
 </manifest>'''
 
-# Fonction pour extraire l'ID vidéo et provider YouTube/Dailymotion
 def extract_video_info(url):
     url = url.strip()
     if "youtube.com/watch" in url or "youtu.be/" in url:
@@ -48,7 +46,6 @@ def extract_video_info(url):
     else:
         return None, None
 
-# Fonction pour créer le package SCORM avec Plyr iframe (YouTube/Dailymotion)
 def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours Vidéo SCORM", completion_rate=80):
     os.makedirs(output_dir, exist_ok=True)
 
@@ -98,6 +95,8 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
   </div>
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
+    console.log('Initialisation du player Plyr');
+
     const completionRate = {completion_rate};
     const message = document.getElementById('completion-message');
     let completed = false;
@@ -111,13 +110,16 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
       controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
     }});
 
-    // Plyr ne remonte pas toujours la durée des iframes, on utilise un intervalle simple
+    player.on('ready', () => console.log('Player prêt'));
+    player.on('error', event => console.error('Erreur du player', event));
+
     player.on('timeupdate', event => {{
       const currentTime = event.detail.plyr.currentTime;
       const duration = event.detail.plyr.duration || 0;
       if (!completed && duration > 0 && (currentTime / duration) * 100 >= completionRate) {{
         completed = true;
         message.style.display = 'block';
+        console.log('Vidéo complétée');
       }}
     }});
   </script>
@@ -135,8 +137,7 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
     with open(os.path.join(output_dir, 'imsmanifest.xml'), 'w', encoding='utf-8') as f:
         f.write(manifest)
 
-# Interface Streamlit
-
+# Streamlit interface
 st.title("Convertisseur Vidéo Distante → SCORM")
 video_url = st.text_input("URL de la vidéo", placeholder="https://exemple.com/video.mp4")
 
