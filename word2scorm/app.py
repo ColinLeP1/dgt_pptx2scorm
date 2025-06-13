@@ -20,6 +20,15 @@ def parse_time_to_seconds(time_str):
         raise ValueError("Durée invalide : max 12h, 59min, 59s")
     return h * 3600 + m * 60 + s
 
+# Liste des formats autorisés
+SUPPORTED_EXTENSIONS = {
+    "Textes": ["pdf", "docx", "doc", "rtf", "txt", "odt"],
+    "Présentations": ["pptx", "odp"],
+    "Tableurs": ["xls","xlsx","xlsm","xltx","xltm","xlsb","ods","numbers","csv"]
+}
+# Aplatit les extensions dans un seul tableau
+allowed_extensions = [ext for group in SUPPORTED_EXTENSIONS.values() for ext in group] 
+
 # Fonctions SCORM
 def create_scorm_manifest(scorm_version, title="Document SCORM"):
     identifier = f"scorm_{uuid.uuid4()}"
@@ -122,13 +131,16 @@ def generate_scorm_package(uploaded_file, file_type, scorm_version, scorm_title)
 st.set_page_config(page_title="SCORM Generator", layout="centered")
 st.title("📦 Générateur de SCORM avec visionneur")
 
-file_type = st.selectbox("Type de fichier :", ["PDF", "DOCX"])
 scorm_version = st.radio("Version SCORM :", ["SCORM 1.2", "SCORM 2004"])
 
-if file_type == "PDF":
-    uploaded_file = st.file_uploader("Importer un fichier PDF", type=["pdf"])
-else:
-    uploaded_file = st.file_uploader("Importer un fichier Word (.docx)", type=["docx"])
+uploaded_file = st.file_uploader(
+    "Importer un document (Texte, Tableur, Présentation)", 
+    type=allowed_extensions
+)
+
+with st.expander("📄 Types de fichiers supportés par catégorie"):
+    for category, extensions in SUPPORTED_EXTENSIONS.items():
+        st.markdown(f"- **{category}** : {', '.join(f'.{ext}' for ext in extensions)}")
 
 if uploaded_file:
     default_title = Path(uploaded_file.name).stem
@@ -146,7 +158,7 @@ if uploaded_file:
     if st.button("🎁 Générer le SCORM"):
         with st.spinner("Création du package SCORM..."):
             try:
-                zip_path = generate_scorm_package(uploaded_file, file_type, scorm_version, scorm_title)
+                zip_path = generate_scorm_package(uploaded_file, file_type, scorm_version, scorm_title, duration_seconds)
                 st.success("SCORM généré avec succès ✅")
                 with open(zip_path, "rb") as f:
                     st.download_button("📥 Télécharger le package SCORM", f, file_name=zip_path.name)
