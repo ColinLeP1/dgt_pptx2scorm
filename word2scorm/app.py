@@ -5,10 +5,20 @@ import zipfile
 import uuid
 from pathlib import Path
 from docx2pdf import convert
+import re
 
 # Dossiers
 EXPORTS_DIR = "exports"
 os.makedirs(EXPORTS_DIR, exist_ok=True)
+
+#Fonction time -> seconds
+def parse_time_to_seconds(time_str):
+    if not re.match(r"^\d{2}:\d{2}:\d{2}$", time_str):
+        raise ValueError("Format invalide. Utilisez HH:MM:SS")
+    h, m, s = map(int, time_str.split(":"))
+    if h > 12 or m >= 60 or s >= 60:
+        raise ValueError("Durée invalide : max 12h, 59min, 59s")
+    return h * 3600 + m * 60 + s
 
 # Fonctions SCORM
 def create_scorm_manifest(scorm_version, title="Document SCORM"):
@@ -123,7 +133,16 @@ else:
 if uploaded_file:
     default_title = Path(uploaded_file.name).stem
     scorm_title = st.text_input("Titre du module SCORM :", value=default_title)
+    
+    default_time = "00:10:00"
+    time_input = st.text_input("⏱️ Temps avant validation automatique (HH:MM:SS)", value=default_time)
 
+    try:
+        duration_seconds = parse_time_to_seconds(time_input)
+    except ValueError as ve:
+        st.error(f"⛔ {ve}")
+        st.stop()
+    
     if st.button("🎁 Générer le SCORM"):
         with st.spinner("Création du package SCORM..."):
             try:
