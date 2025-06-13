@@ -42,6 +42,8 @@ function initScorm() {
     console.warn("SCORM init failed");
   }
 }
+const initResult = scorm.init();
+console.log("scorm.init() returned:", initResult);
 window.setCompleted = function() {
   // Exemple simple pour marquer le module comme complété
   scorm.set("cmi.core.lesson_status", "completed");
