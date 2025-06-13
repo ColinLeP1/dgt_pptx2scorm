@@ -931,13 +931,13 @@ var completed = false;
 // Initialisation SCORM
 function initScorm() {
   initialized = scorm.init();
-  if (!initialized) {
+  if (initialized) {
+    isScorm2004 = scorm.version === "2004";
+    window.addEventListener("unload", saveProgress);
+    window.addEventListener("beforeunload", saveProgress);
+  } else {
     console.warn("SCORM init failed");
-    return;
   }
-  isScorm2004 = scorm.version === "2004";
-  window.addEventListener("unload", saveProgress);
-  window.addEventListener("beforeunload", saveProgress);
 }
 
 // Sauvegarde de l'état
