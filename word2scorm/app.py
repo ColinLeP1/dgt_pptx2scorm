@@ -5,8 +5,6 @@ import zipfile
 import uuid
 from pathlib import Path
 from docx2pdf import convert
-import platform
-st.write(f"Système détecté : {platform.system()}")
 
 # Dossiers
 EXPORTS_DIR = "exports"
