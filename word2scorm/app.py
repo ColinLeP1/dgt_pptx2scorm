@@ -61,7 +61,7 @@ def convert_docx_to_pdf(docx_path, output_dir):
     pdf_path = os.path.splitext(docx_path)[0] + ".pdf"
     return pdf_path
 
-def generate_scorm_package(uploaded_file, file_type, scorm_version):
+def generate_scorm_package(uploaded_file, file_type, scorm_version, scorm_title):
     temp_dir = Path(EXPORTS_DIR) / f"scorm_{uuid.uuid4().hex}"
     temp_dir.mkdir(parents=True, exist_ok=True)
 
@@ -82,7 +82,7 @@ def generate_scorm_package(uploaded_file, file_type, scorm_version):
     (temp_dir / "index.html").write_text(index_html, encoding="utf-8")
 
     # Créer imsmanifest.xml
-    manifest_xml = create_scorm_manifest(scorm_version, title=original_filename)
+    manifest_xml = create_scorm_manifest(scorm_version, title=scorm_title)
     (temp_dir / "imsmanifest.xml").write_text(manifest_xml, encoding="utf-8")
 
     # Créer le ZIP
@@ -109,10 +109,14 @@ else:
     uploaded_file = st.file_uploader("Importer un fichier Word (.docx)", type=["docx"])
 
 if uploaded_file:
+    if uploaded_file:
+    default_title = Path(uploaded_file.name).stem
+    scorm_title = st.text_input("Titre du module SCORM :", value=default_title)
+
     if st.button("🎁 Générer le SCORM"):
         with st.spinner("Création du package SCORM..."):
             try:
-                zip_path = generate_scorm_package(uploaded_file, file_type, scorm_version)
+                zip_path = generate_scorm_package(uploaded_file, file_type, scorm_version, scorm_title)
                 st.success("SCORM généré avec succès ✅")
                 with open(zip_path, "rb") as f:
                     st.download_button("📥 Télécharger le package SCORM", f, file_name=zip_path.name)
