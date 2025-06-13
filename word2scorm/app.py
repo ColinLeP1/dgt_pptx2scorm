@@ -109,7 +109,6 @@ else:
     uploaded_file = st.file_uploader("Importer un fichier Word (.docx)", type=["docx"])
 
 if uploaded_file:
-    if uploaded_file:
     default_title = Path(uploaded_file.name).stem
     scorm_title = st.text_input("Titre du module SCORM :", value=default_title)
 
