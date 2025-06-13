@@ -35,12 +35,19 @@ function initScorm() {
   if (initialized) {
     isScorm2004 = scorm.version === "2004";
     window.addEventListener("unload", saveProgress);
-    window.addEventListener("beforeunload", saveProgress);
+    window.addEventListener('beforeunload', function() {
+      scorm.quit();
+    });
   } else {
     console.warn("SCORM init failed");
   }
 }
-
+window.setCompleted = function() {
+  // Exemple simple pour marquer le module comme complété
+  scorm.set("cmi.core.lesson_status", "completed");
+  scorm.save();
+  console.log("Module marqué comme complété.");
+}
 // Sauvegarde de l'état
 function setCompleted() {
   if (!initialized || completed) {
