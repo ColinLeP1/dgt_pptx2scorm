@@ -48,13 +48,25 @@ def create_index_html(file_name):
   <head>
     <meta charset="UTF-8">
     <title>SCORM Viewer</title>
+    <style>
+      html, body {{
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }}
+      iframe {{
+        width: 100%;
+        height: 100%;
+        border: none;
+      }}
+    </style>
   </head>
   <body>
-    <h2>Document</h2>
-    <iframe src="{file_name}" width="100%" height="600px"></iframe>
+    <iframe src="{file_name}" type="application/pdf"></iframe>
   </body>
 </html>
 """
+
 
 def convert_docx_to_pdf(docx_path, output_dir):
     convert(docx_path, output_dir)
