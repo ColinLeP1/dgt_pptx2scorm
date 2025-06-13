@@ -124,23 +124,23 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
     player.on('ready', () => console.log('Player prêt'));
     player.on('error', event => console.error('Erreur du player', event));
 
-    player.on('timeupdate', event => {{
+    player.on('timeupdate', event => {
       const currentTime = player.currentTime;
       const duration = player.duration || 0;
 
-      if(currentTime > maxTimeReached) {{
+      if(currentTime > maxTimeReached) {
         maxTimeReached = currentTime;
-      }}
+      }
 
-      if (!completed && duration > 0 && (currentTime / duration) * 100 >= completionRate) {{
+      if (!completed && duration > 0 && (currentTime / duration) * 100 >= completionRate) {
           completed = true;
           message.style.display = 'block';
           console.log('🎉 Vidéo complétée');
 
-          if (typeof setCompleted === "function") {{
+          if (typeof setCompleted === "function") {
             setCompleted(); // Appelle wrapper.js pour notifier le LMS
-  }}
-}}
+  }
+}
 
     }});
 
