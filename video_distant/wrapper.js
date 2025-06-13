@@ -942,7 +942,9 @@ function initScorm() {
 
 // Sauvegarde de l'état
 function setCompleted() {
-  if (!initialized || completed) return;
+  if (!initialized || completed) {
+    return;
+  }
   const key = isScorm2004 ? "cmi.completion_status" : "cmi.core.lesson_status";
   scorm.set(key, "completed");
   scorm.save();
@@ -950,7 +952,9 @@ function setCompleted() {
 }
 
 function saveProgress() {
-  if (!initialized || completed) return;
+  if (!initialized || completed) {
+    return;
+  }
   const key = isScorm2004 ? "cmi.completion_status" : "cmi.core.lesson_status";
   scorm.set(key, "incomplete");
   scorm.save();
