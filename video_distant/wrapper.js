@@ -922,3 +922,40 @@ further modified by Philip Hutchison
     return pipwerks;
 
 }));
+// wrapper.js
+var scorm = pipwerks.SCORM;
+var isScorm2004 = false;
+var initialized = false;
+var completed = false;
+
+// Initialisation SCORM
+function initScorm() {
+  initialized = scorm.init();
+  if (!initialized) {
+    console.warn("SCORM init failed");
+    return;
+  }
+  isScorm2004 = scorm.version === "2004";
+  window.addEventListener("unload", saveProgress);
+  window.addEventListener("beforeunload", saveProgress);
+}
+
+// Sauvegarde de l'état
+function setCompleted() {
+  if (!initialized || completed) return;
+  const key = isScorm2004 ? "cmi.completion_status" : "cmi.core.lesson_status";
+  scorm.set(key, "completed");
+  scorm.save();
+  completed = true;
+}
+
+function saveProgress() {
+  if (!initialized || completed) return;
+  const key = isScorm2004 ? "cmi.completion_status" : "cmi.core.lesson_status";
+  scorm.set(key, "incomplete");
+  scorm.save();
+  scorm.quit();
+}
+
+// Appeler à la fin du chargement
+document.addEventListener("DOMContentLoaded", initScorm);
