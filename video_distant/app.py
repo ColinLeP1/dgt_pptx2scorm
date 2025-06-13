@@ -133,10 +133,15 @@ def create_scorm_package(video_url, output_dir, version, scorm_title="Mon Cours 
       }}
 
       if (!completed && duration > 0 && (currentTime / duration) * 100 >= completionRate) {{
-        completed = true;
-        message.style.display = 'block';
-        console.log('Vidéo complétée');
-      }}
+          completed = true;
+          message.style.display = 'block';
+          console.log('🎉 Vidéo complétée');
+
+          if (typeof setCompleted === "function") {{
+            setCompleted(); // Appelle wrapper.js pour notifier le LMS
+  }}
+}}
+
     }});
 
     player.on('seeking', event => {{
