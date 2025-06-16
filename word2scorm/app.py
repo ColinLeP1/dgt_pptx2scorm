@@ -11,7 +11,7 @@ import re
 EXPORTS_DIR = "exports"
 os.makedirs(EXPORTS_DIR, exist_ok=True)
 
-#Fonction time -> seconds
+# Fonction time -> seconds
 def parse_time_to_seconds(time_str):
     if not re.match(r"^\d{2}:\d{2}:\d{2}$", time_str):
         raise ValueError("Format invalide. Utilisez HH:MM:SS")
@@ -29,7 +29,7 @@ SUPPORTED_EXTENSIONS = {
 # Aplatit les extensions dans un seul tableau
 allowed_extensions = [ext for group in SUPPORTED_EXTENSIONS.values() for ext in group] 
 
-#Détection du type de fichier
+# Détection du type de fichier
 def detect_file_category(extension):
     for category, ext_list in SUPPORTED_EXTENSIONS.items():
         if extension.lower() in ext_list:
@@ -69,54 +69,30 @@ def create_scorm_manifest(scorm_version, title="Document SCORM"):
     return manifest
 
 def create_index_html_by_type(file_name, category):
-    if category == "Textes":
-        return f"""<!DOCTYPE html>
+    # Affichage universel en iframe PDF
+    return f"""<!DOCTYPE html>
 <html>
-  <head><meta charset="UTF-8"><title>SCORM Viewer</title></head>
+  <head><meta charset="UTF-8"><title>Visionneur PDF</title></head>
   <body style="margin:0;padding:0;height:100vh;">
     <iframe src="{file_name}" style="width:100%;height:100%;" type="application/pdf"></iframe>
   </body>
 </html>
 """
-    elif category == "Présentations":
-        return f"""<!DOCTYPE html>
-<html>
-  <head><meta charset="UTF-8"><title>Visionneuse Présentation</title></head>
-  <body>
-    <h2>Fichier Présentation : {file_name}</h2>
-    <p>Votre présentation est disponible pour téléchargement ou visualisation locale.</p>
-    <a href="{file_name}" download>Télécharger le fichier</a>
-  </body>
-</html>
-"""
-    elif category == "Tableurs":
-        return f"""<!DOCTYPE html>
-<html>
-  <head><meta charset="UTF-8"><title>Visionneuse Tableur</title></head>
-  <body>
-    <h2>Fichier Tableur : {file_name}</h2>
-    <p>Ce fichier tableur peut être ouvert avec un logiciel compatible.</p>
-    <a href="{file_name}" download>Télécharger le fichier</a>
-  </body>
-</html>
-"""
-    else:
-        return f"""<!DOCTYPE html>
-<html>
-  <head><meta charset="UTF-8"><title>Fichier</title></head>
-  <body>
-    <p>Fichier : {file_name}</p>
-    <a href="{file_name}" download>Télécharger</a>
-  </body>
-</html>
-"""
 
+def convert_text_to_pdf(input_path, output_path):
+    from fpdf import FPDF
 
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
 
-def convert_docx_to_pdf(docx_path, output_dir):
-    convert(docx_path, output_dir)
-    pdf_path = os.path.splitext(docx_path)[0] + ".pdf"
-    return pdf_path
+    with open(input_path, "r", encoding="utf-8", errors="ignore") as file:
+        for line in file:
+            pdf.multi_cell(0, 10, line)
+
+    pdf.output(output_path)
+    return output_path
 
 def generate_scorm_package(uploaded_file, scorm_version, scorm_title, duration_seconds):
     temp_dir = Path(EXPORTS_DIR) / f"scorm_{uuid.uuid4().hex}"
@@ -131,10 +107,22 @@ def generate_scorm_package(uploaded_file, scorm_version, scorm_title, duration_s
         f.write(uploaded_file.read())
 
     viewer_file = original_filename
-    if extension == "docx":
-        pdf_path = convert_docx_to_pdf(str(file_path), str(temp_dir))
-        viewer_file = Path(pdf_path).name
-        category = "Textes"
+    pdf_path = None
+
+    if category == "Textes":
+        if extension == "docx":
+            pdf_path = convert_docx_to_pdf(str(file_path), str(temp_dir))
+        else:
+            # Conversion des autres formats texte en PDF simple
+            text_pdf_path = temp_dir / f"{Path(original_filename).stem}.pdf"
+            try:
+                convert_text_to_pdf(str(file_path), str(text_pdf_path))
+                pdf_path = text_pdf_path
+            except Exception as e:
+                raise RuntimeError(f"Échec de conversion en PDF : {e}")
+
+        if pdf_path:
+            viewer_file = Path(pdf_path).name
 
     # Créer index.html selon la catégorie
     index_html = create_index_html_by_type(viewer_file, category)
