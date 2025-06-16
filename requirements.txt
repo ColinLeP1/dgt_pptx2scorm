@@ -4,3 +4,4 @@ pycountry
 docx2pdf
 fpdf
 chardet
+reportlab
