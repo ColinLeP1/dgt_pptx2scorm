@@ -1,11 +1,11 @@
-def srt_to_vtt(srt_path, vtt_path):
-    with open(srt_path, 'r', encoding='utf-8') as srt_file:
-        lines = srt_file.readlines()
+from io import StringIO
 
-    with open(vtt_path, 'w', encoding='utf-8') as vtt_file:
-        vtt_file.write("WEBVTT\n\n")  # entête obligatoire VTT
+def srt_to_vtt(srt_content: str) -> str:
+    input_stream = StringIO(srt_content)
+    output_lines = ["WEBVTT\n\n"]
 
-        for line in lines:
-            if '-->' in line:
-                line = line.replace(',', '.')
-            vtt_file.write(line)
+    for line in input_stream:
+        line = line.replace(',', '.')  # SRT utilise "," pour les millisecondes
+        output_lines.append(line)
+
+    return ''.join(output_lines)
