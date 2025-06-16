@@ -8,6 +8,10 @@ import chardet
 from fpdf import FPDF
 from pathlib import Path
 from docx2pdf import convert
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import cm
 
 # Dossiers
 EXPORTS_DIR = "exports"
@@ -88,17 +92,21 @@ def convert_text_to_pdf(input_path, output_path):
     result = chardet.detect(rawdata)
     encoding = result['encoding'] if result['encoding'] else 'utf-8'
 
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
+    styles = getSampleStyleSheet()
+    normal_style = styles['Normal']
+    doc = SimpleDocTemplate(output_path, pagesize=A4,
+                            rightMargin=2*cm, leftMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
 
-    # Lire le fichier avec l'encodage détecté, remplacer les erreurs
+    story = []
     with open(input_path, "r", encoding=encoding, errors="replace") as file:
         for line in file:
-            pdf.multi_cell(0, 10, line)
+            line = line.strip()
+            if line:
+                story.append(Paragraph(line, normal_style))
+                story.append(Spacer(1, 6))  # espace entre paragraphes
 
-    pdf.output(output_path)
+    doc.build(story)
     return output_path
 
 
