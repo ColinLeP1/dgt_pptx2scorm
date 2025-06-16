@@ -66,11 +66,16 @@ def delete_question(q_idx):
 
 # Interface dynamique des questions
 for q_idx, q in enumerate(st.session_state.questions_data):
-    titre_affiché = q["title"].strip() or "[Sans titre]"
+    # Lire dynamiquement le titre existant
+    current_title = q.get("title", "").strip()
+    titre_affiché = current_title if current_title else "[Sans titre]"
+
     with st.expander(f"Question {q_idx+1} : {titre_affiché}", expanded=True):
         cols = st.columns([4, 1])
         with cols[0]:
-            q["title"] = st.text_input(f"Titre de la question #{q_idx+1}", value=q.get("title", ""), key=f"title_{q_idx}")
+            new_title = st.text_input(f"Titre de la question #{q_idx+1}", value=current_title, key=f"title_{q_idx}")
+            st.session_state.questions_data[q_idx]["title"] = new_title
+
             new_type = st.selectbox(
                 f"Type de question #{q_idx+1}",
                 ["Vrai / Faux", "QCU", "QCM"],
@@ -81,6 +86,7 @@ for q_idx, q in enumerate(st.session_state.questions_data):
                 change_question_type(q_idx, new_type)
 
             q["statement"] = st.text_area(f"Énoncé de la question #{q_idx+1}", value=q["statement"], key=f"statement_{q_idx}")
+
         with cols[1]:
             if st.button("🗑 Supprimer la question", key=f"del_q_{q_idx}"):
                 delete_question(q_idx)
