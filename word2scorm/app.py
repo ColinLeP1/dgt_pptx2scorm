@@ -22,12 +22,19 @@ def parse_time_to_seconds(time_str):
 
 # Liste des formats autorisés
 SUPPORTED_EXTENSIONS = {
-    "Textes": ["pdf", "docx", "doc", "rtf", "txt", "odt"],
+    "Textes": ["pdf", "docx", "doc", "rtf", "txt", "odt", "pages"],
     "Présentations": ["pptx", "odp"],
     "Tableurs": ["xls","xlsx","xlsm","xltx","xltm","xlsb","ods","numbers","csv"]
 }
 # Aplatit les extensions dans un seul tableau
 allowed_extensions = [ext for group in SUPPORTED_EXTENSIONS.values() for ext in group] 
+
+#Détection du type de fichier
+def detect_file_category(extension):
+    for category, ext_list in SUPPORTED_EXTENSIONS.items():
+        if extension.lower() in ext_list:
+            return category
+    return "Autre"
 
 # Fonctions SCORM
 def create_scorm_manifest(scorm_version, title="Document SCORM"):
@@ -61,30 +68,49 @@ def create_scorm_manifest(scorm_version, title="Document SCORM"):
 """
     return manifest
 
-def create_index_html(file_name):
-    return f"""<!DOCTYPE html>
+def create_index_html_by_type(file_name, category):
+    if category == "Textes":
+        return f"""<!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8">
-    <title>SCORM Viewer</title>
-    <style>
-      html, body {{
-        margin: 0;
-        padding: 0;
-        height: 100%;
-      }}
-      iframe {{
-        width: 100%;
-        height: 100%;
-        border: none;
-      }}
-    </style>
-  </head>
-  <body>
-    <iframe src="{file_name}" type="application/pdf"></iframe>
+  <head><meta charset="UTF-8"><title>SCORM Viewer</title></head>
+  <body style="margin:0;padding:0;height:100vh;">
+    <iframe src="{file_name}" style="width:100%;height:100%;" type="application/pdf"></iframe>
   </body>
 </html>
 """
+    elif category == "Présentations":
+        return f"""<!DOCTYPE html>
+<html>
+  <head><meta charset="UTF-8"><title>Visionneuse Présentation</title></head>
+  <body>
+    <h2>Fichier Présentation : {file_name}</h2>
+    <p>Votre présentation est disponible pour téléchargement ou visualisation locale.</p>
+    <a href="{file_name}" download>Télécharger le fichier</a>
+  </body>
+</html>
+"""
+    elif category == "Tableurs":
+        return f"""<!DOCTYPE html>
+<html>
+  <head><meta charset="UTF-8"><title>Visionneuse Tableur</title></head>
+  <body>
+    <h2>Fichier Tableur : {file_name}</h2>
+    <p>Ce fichier tableur peut être ouvert avec un logiciel compatible.</p>
+    <a href="{file_name}" download>Télécharger le fichier</a>
+  </body>
+</html>
+"""
+    else:
+        return f"""<!DOCTYPE html>
+<html>
+  <head><meta charset="UTF-8"><title>Fichier</title></head>
+  <body>
+    <p>Fichier : {file_name}</p>
+    <a href="{file_name}" download>Télécharger</a>
+  </body>
+</html>
+"""
+
 
 
 def convert_docx_to_pdf(docx_path, output_dir):
@@ -92,24 +118,26 @@ def convert_docx_to_pdf(docx_path, output_dir):
     pdf_path = os.path.splitext(docx_path)[0] + ".pdf"
     return pdf_path
 
-def generate_scorm_package(uploaded_file, file_type, scorm_version, scorm_title):
+def generate_scorm_package(uploaded_file, scorm_version, scorm_title, duration_seconds):
     temp_dir = Path(EXPORTS_DIR) / f"scorm_{uuid.uuid4().hex}"
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     original_filename = uploaded_file.name
+    extension = original_filename.split(".")[-1].lower()
+    category = detect_file_category(extension)
     file_path = temp_dir / original_filename
 
     with open(file_path, "wb") as f:
         f.write(uploaded_file.read())
 
-    if file_type == "DOCX":
+    viewer_file = original_filename
+    if extension == "docx":
         pdf_path = convert_docx_to_pdf(str(file_path), str(temp_dir))
         viewer_file = Path(pdf_path).name
-    else:
-        viewer_file = original_filename
+        category = "Textes"
 
-    # Créer index.html
-    index_html = create_index_html(viewer_file)
+    # Créer index.html selon la catégorie
+    index_html = create_index_html_by_type(viewer_file, category)
     (temp_dir / "index.html").write_text(index_html, encoding="utf-8")
 
     # Créer imsmanifest.xml
@@ -126,6 +154,7 @@ def generate_scorm_package(uploaded_file, file_type, scorm_version, scorm_title)
 
     shutil.rmtree(temp_dir)
     return zip_path
+
 
 # --- UI Streamlit ---
 st.set_page_config(page_title="SCORM Generator", layout="centered")
@@ -158,7 +187,7 @@ if uploaded_file:
     if st.button("🎁 Générer le SCORM"):
         with st.spinner("Création du package SCORM..."):
             try:
-                zip_path = generate_scorm_package(uploaded_file, file_type, scorm_version, scorm_title, duration_seconds)
+                zip_path = generate_scorm_package(uploaded_file, scorm_version, scorm_title, duration_seconds)
                 st.success("SCORM généré avec succès ✅")
                 with open(zip_path, "rb") as f:
                     st.download_button("📥 Télécharger le package SCORM", f, file_name=zip_path.name)
