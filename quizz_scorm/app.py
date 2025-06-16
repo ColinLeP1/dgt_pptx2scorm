@@ -24,35 +24,54 @@ st.header("Ajouter une question")
 question_type = st.selectbox("Type de question", ["Vrai / Faux", "QCU (Choix Unique)", "QCM (Choix Multiples)"])
 question_statement = st.text_area("Énoncé de la question")
 
+options = []
+correct_answers = []
+
 if question_type == "Vrai / Faux":
-    correct_answer = st.radio("Réponse correcte", ["Vrai", "Faux"])
+    options = ["Vrai", "Faux"]
+    for i, opt in enumerate(options):
+        is_correct = st.checkbox(f"✔ Réponse correcte : {opt}", key=f"vf_{i}")
+        if is_correct:
+            correct_answers.append(opt)
 
 elif question_type == "QCU (Choix Unique)":
-    options = []
-    num_options = st.number_input("Nombre de choix", min_value=2, max_value=6, step=1, value=4)
+    num_options = st.number_input("Nombre de choix", min_value=2, max_value=6, value=4, step=1)
     for i in range(num_options):
-        options.append(st.text_input(f"Choix {i+1}", key=f"qcu_{i}"))
-    correct_choice = st.selectbox("Choix correct", options)
+        opt = st.text_input(f"Choix {i+1}", key=f"qcu_opt_{i}")
+        if opt:
+            options.append(opt)
+    st.markdown("Cochez **une seule** bonne réponse :")
+    for i, opt in enumerate(options):
+        is_correct = st.checkbox(f"✔ Réponse correcte : {opt}", key=f"qcu_check_{i}")
+        if is_correct:
+            correct_answers.append(opt)
 
 elif question_type == "QCM (Choix Multiples)":
-    options = []
-    correct_choices = []
-    num_options = st.number_input("Nombre de choix", min_value=2, max_value=6, step=1, value=4, key="qcm_num")
+    num_options = st.number_input("Nombre de choix", min_value=2, max_value=6, value=4, step=1)
     for i in range(num_options):
-        option_text = st.text_input(f"Choix {i+1}", key=f"qcm_{i}")
-        is_correct = st.checkbox(f"Correct ?", key=f"check_{i}")
-        options.append(option_text)
+        opt = st.text_input(f"Choix {i+1}", key=f"qcm_opt_{i}")
+        if opt:
+            options.append(opt)
+    st.markdown("Cochez les bonnes réponses :")
+    for i, opt in enumerate(options):
+        is_correct = st.checkbox(f"✔ Réponse correcte : {opt}", key=f"qcm_check_{i}")
         if is_correct:
-            correct_choices.append(option_text)
+            correct_answers.append(opt)
 
-# --- Bouton pour enregistrer la question ---
+# --- Validation ---
 if st.button("✅ Ajouter cette question au quizz"):
-    st.success("Question ajoutée (simulation — stockage non implémenté).")
-
-# --- Bonus : Aperçu du quizz ---
-st.divider()
-st.subheader("🔍 Aperçu du quizz")
-st.markdown(f"### {quiz_title}")
-if uploaded_image:
-    st.image(uploaded_image, use_column_width=True)
-st.markdown(quiz_description)
+    if not question_statement:
+        st.warning("Veuillez saisir l'énoncé de la question.")
+    elif not options:
+        st.warning("Veuillez saisir au moins deux choix.")
+    elif not correct_answers:
+        st.warning("Veuillez cocher au moins une bonne réponse.")
+    elif question_type == "QCU (Choix Unique)" and len(correct_answers) > 1:
+        st.warning("Pour une QCU, veuillez cocher **une seule** bonne réponse.")
+    else:
+        st.success("✅ Question ajoutée avec succès (simulation).")
+        st.write("**Aperçu de la question :**")
+        st.markdown(f"**Énoncé :** {question_statement}")
+        st.markdown("**Choix :**")
+        for opt in options:
+            st.markdown(f"- {opt} {'✅' if opt in correct_answers else ''}")
