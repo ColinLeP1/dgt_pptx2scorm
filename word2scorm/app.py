@@ -3,9 +3,11 @@ import os
 import shutil
 import zipfile
 import uuid
+import re
+import chardet
+from fpdf import FPDF
 from pathlib import Path
 from docx2pdf import convert
-import re
 
 # Dossiers
 EXPORTS_DIR = "exports"
@@ -80,14 +82,19 @@ def create_index_html_by_type(file_name, category):
 """
 
 def convert_text_to_pdf(input_path, output_path):
-    from fpdf import FPDF
+    # Détecter l'encodage
+    with open(input_path, 'rb') as f:
+        rawdata = f.read()
+    result = chardet.detect(rawdata)
+    encoding = result['encoding'] if result['encoding'] else 'utf-8'
 
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     pdf.set_font("Arial", size=12)
 
-    with open(input_path, "r", encoding="utf-8", errors="replace") as file:
+    # Lire le fichier avec l'encodage détecté, remplacer les erreurs
+    with open(input_path, "r", encoding=encoding, errors="replace") as file:
         for line in file:
             pdf.multi_cell(0, 10, line)
 
