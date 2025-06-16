@@ -3,3 +3,4 @@ PyPDF2
 pycountry
 docx2pdf
 fpdf
+chardet
