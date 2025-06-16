@@ -1,15 +1,13 @@
-def vtt_to_srt(vtt_path, srt_path):
-    with open(vtt_path, 'r', encoding='utf-8') as vtt_file:
-        lines = vtt_file.readlines()
+from io import StringIO
 
-    with open(srt_path, 'w', encoding='utf-8') as srt_file:
-        for line in lines:
-            # Ignorer la ligne "WEBVTT" et les lignes vides en début de fichier
-            if line.strip() == "WEBVTT" or line.strip() == "":
-                continue
-            
-            # Si la ligne contient une flèche, remplacer '.' par ',' dans les timestamps
-            if '-->' in line:
-                line = line.replace('.', ',')
-            
-            srt_file.write(line)
+def vtt_to_srt(vtt_content: str) -> str:
+    input_stream = StringIO(vtt_content)
+    output_lines = []
+
+    for line in input_stream:
+        if line.startswith("WEBVTT"):
+            continue
+        line = line.replace('.', ',')  # VTT utilise "." pour les millisecondes
+        output_lines.append(line)
+
+    return ''.join(output_lines)
