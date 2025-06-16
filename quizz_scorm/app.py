@@ -77,7 +77,6 @@ for q_idx, q in enumerate(st.session_state.questions_data):
                 index=["Vrai / Faux", "QCU", "QCM"].index(q["type"]),
                 key=f"type_{q_idx}"
             )
-
             if new_type != q["type"]:
                 change_question_type(q_idx, new_type)
 
@@ -89,21 +88,20 @@ for q_idx, q in enumerate(st.session_state.questions_data):
 
         st.markdown("**Réponses :**")
         for opt_idx, opt in enumerate(q["options"]):
-        c1, c2, c3 = st.columns([6, 1, 1])
-        with c1:
-            if q["type"] == "Vrai / Faux":
-                st.markdown(f"- **{opt}**")  # Affichage simple du texte
-            else:
-                update = st.text_input(f"Réponse {opt_idx+1}", value=opt, key=f"opt_{q_idx}_{opt_idx}")
-                update_option_text(q_idx, opt_idx, update)
-        with c2:
-            st.checkbox("Bonne", value=q["correct"][opt_idx], key=f"chk_{q_idx}_{opt_idx}", on_change=toggle_correct, args=(q_idx, opt_idx))
-        with c3:
-            if q["type"] != "Vrai / Faux" and len(q["options"]) > (2 if q["type"] == "QCU" else 3):
-                if st.button("🗑", key=f"del_opt_{q_idx}_{opt_idx}"):
-                    delete_option(q_idx, opt_idx)
-                    st.rerun()
-
+            c1, c2, c3 = st.columns([6, 1, 1])
+            with c1:
+                if q["type"] == "Vrai / Faux":
+                    st.markdown(f"- **{opt}**")
+                else:
+                    update = st.text_input(f"Réponse {opt_idx+1}", value=opt, key=f"opt_{q_idx}_{opt_idx}")
+                    update_option_text(q_idx, opt_idx, update)
+            with c2:
+                st.checkbox("Bonne", value=q["correct"][opt_idx], key=f"chk_{q_idx}_{opt_idx}", on_change=toggle_correct, args=(q_idx, opt_idx))
+            with c3:
+                if q["type"] != "Vrai / Faux" and len(q["options"]) > (2 if q["type"] == "QCU" else 3):
+                    if st.button("🗑", key=f"del_opt_{q_idx}_{opt_idx}"):
+                        delete_option(q_idx, opt_idx)
+                        st.rerun()
 
         if q["type"] != "Vrai / Faux":
             if st.button(f"➕ Ajouter une réponse à la question {q_idx+1}", key=f"add_opt_{q_idx}"):
