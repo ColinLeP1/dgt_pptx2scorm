@@ -87,12 +87,13 @@ def convert_text_to_pdf(input_path, output_path):
     pdf.add_page()
     pdf.set_font("Arial", size=12)
 
-    with open(input_path, "r", encoding="utf-8", errors="ignore") as file:
+    with open(input_path, "r", encoding="utf-8", errors="replace") as file:
         for line in file:
             pdf.multi_cell(0, 10, line)
 
     pdf.output(output_path)
     return output_path
+
 
 def generate_scorm_package(uploaded_file, scorm_version, scorm_title, duration_seconds):
     temp_dir = Path(EXPORTS_DIR) / f"scorm_{uuid.uuid4().hex}"
