@@ -1,5 +1,5 @@
 import streamlit as st
-import srt_to_vtt, vtt2srt  # si les fonctions sont dans srt_vtt.py, adapte selon nom fichier
+import srt_to_vtt, vtt_to_srt  # si les fonctions sont dans srt_vtt.py, adapte selon nom fichier
 
 st.title("Convertisseur SRT <-> VTT")
 
