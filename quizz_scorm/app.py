@@ -85,7 +85,7 @@ for q_idx, q in enumerate(st.session_state.questions_data):
         with cols[1]:
             if st.button("🗑 Supprimer la question", key=f"del_q_{q_idx}"):
                 delete_question(q_idx)
-                st.experimental_rerun()
+                st.rerun()
 
         st.markdown("**Réponses :**")
         for opt_idx, opt in enumerate(q["options"]):
@@ -102,12 +102,12 @@ for q_idx, q in enumerate(st.session_state.questions_data):
                 if q["type"] != "Vrai / Faux" and len(q["options"]) > (2 if q["type"] == "QCU" else 3):
                     if st.button("🗑", key=f"del_opt_{q_idx}_{opt_idx}"):
                         delete_option(q_idx, opt_idx)
-                        st.experimental_rerun()
+                        st.rerun()
 
         if q["type"] != "Vrai / Faux":
             if st.button(f"➕ Ajouter une réponse à la question {q_idx+1}", key=f"add_opt_{q_idx}"):
                 add_option(q_idx)
-                st.experimental_rerun()
+                st.rerun()
 
 st.divider()
 
