@@ -5,6 +5,7 @@ import zipfile
 import uuid
 import re
 import chardet
+import xml.sax.saxutils
 from fpdf import FPDF
 from pathlib import Path
 from docx2pdf import convert
@@ -103,8 +104,9 @@ def convert_text_to_pdf(input_path, output_path):
         for line in file:
             line = line.strip()
             if line:
-                story.append(Paragraph(line, normal_style))
-                story.append(Spacer(1, 6))  # espace entre paragraphes
+                escaped_line = xml.sax.saxutils.escape(line)  # <-- Échappe les caractères HTML
+                story.append(Paragraph(escaped_line, normal_style))
+                story.append(Spacer(1, 6))
 
     doc.build(story)
     return output_path
