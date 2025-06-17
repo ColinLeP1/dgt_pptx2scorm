@@ -1,6 +1,27 @@
-from srt2vtt import srt_to_vtt
-from vtt2srt import vtt_to_srt
 import streamlit as st
+from io import StringIO
+
+def srt_to_vtt(srt_content: str) -> str:
+    input_stream = StringIO(srt_content)
+    output_lines = ["WEBVTT\n\n"]
+
+    for line in input_stream:
+        line = line.replace(',', '.')  # SRT utilise "," pour les millisecondes
+        output_lines.append(line)
+
+    return ''.join(output_lines)
+
+def vtt_to_srt(vtt_content: str) -> str:
+    input_stream = StringIO(vtt_content)
+    output_lines = []
+
+    for line in input_stream:
+        if line.startswith("WEBVTT"):
+            continue
+        line = line.replace('.', ',')  # VTT utilise "." pour les millisecondes
+        output_lines.append(line)
+
+    return ''.join(output_lines)
 
 st.title("Convertisseur SRT <-> VTT")
 
